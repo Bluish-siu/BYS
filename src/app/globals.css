@@ -1,0 +1,10 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body { background: #07070c; color: #f4f4f8; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+body { -webkit-tap-highlight-color: transparent; }
+.btn { @apply inline-flex items-center justify-center rounded-full px-5 py-2.5 font-semibold transition active:scale-95; }
+.btn-brand { @apply bg-brand text-white hover:brightness-110; }
+.btn-ghost { @apply border border-white/20 hover:bg-white/10; }
+.card { @apply rounded-2xl bg-panel border border-white/10; }
