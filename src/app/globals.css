@@ -8,3 +8,13 @@ body { -webkit-tap-highlight-color: transparent; }
 .btn-brand { @apply bg-brand text-white hover:brightness-110; }
 .btn-ghost { @apply border border-white/20 hover:bg-white/10; }
 .card { @apply rounded-2xl bg-panel border border-white/10; }
+
+/* hero title swaps in with a blur-up reveal */
+.reveal { animation: reveal 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@keyframes reveal {
+  from { opacity: 0; transform: translateY(28px) scale(0.97); filter: blur(10px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+/* fills over the same 5.2 s the ring waits before turning */
+.hero-progress { animation: hero-progress 5.2s linear both; }
+@keyframes hero-progress { from { width: 0; } to { width: 100%; } }
