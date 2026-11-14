@@ -192,6 +192,7 @@ export function Hall({ layout, format, movie, sold, picked, onPick, input }: {
   }, [spec]);
   const sy = spec.pos.y, sz = spec.pos.z;
   const r0 = layout.rows[0], rN = layout.rows[layout.rows.length - 1];
+  const hf = Math.min(H - 2, sy + spec.h / 2 + 1.4); // ceiling is low above the screen and rises toward the back
   const slopeLen = Math.hypot(rN.z - r0.z, rN.y - r0.y);
 
   return (
@@ -217,7 +218,7 @@ export function Hall({ layout, format, movie, sold, picked, onPick, input }: {
       ))}
 
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, cz]}><planeGeometry args={[HALL_W, L]} /><meshStandardMaterial map={tex.floor} roughness={1} /></mesh>
-      <mesh position={[0, H / 2, -3.8]}><planeGeometry args={[HALL_W, H]} /><meshStandardMaterial color="#0d0e14" /></mesh>
+      <mesh position={[0, H / 2, -3.8]}><planeGeometry args={[HALL_W, H]} /><meshStandardMaterial map={tex.backWall} roughness={0.95} /></mesh>
       <mesh position={[0, H / 2, D]} rotation={[0, Math.PI, 0]}><planeGeometry args={[HALL_W, H]} /><meshStandardMaterial map={tex.backWall} roughness={0.9} /></mesh>
       {/* projection booth windows high on the back wall */}
       {[-3.6, -1.2, 1.2, 3.6].map((x) => (
@@ -237,7 +238,7 @@ export function Hall({ layout, format, movie, sold, picked, onPick, input }: {
           ))}
         </group>
       ))}
-      <mesh position={[0, H, cz]} rotation={[Math.PI / 2, 0, 0]}><planeGeometry args={[HALL_W, L]} /><meshStandardMaterial map={tex.ceiling} emissive="#ffd9a0" emissiveMap={tex.ceiling} emissiveIntensity={0.25} /></mesh>
+      <mesh position={[0, (hf + H) / 2, cz]} rotation={[Math.PI / 2 - Math.atan2(H - hf, L), 0, 0]}><planeGeometry args={[HALL_W, Math.hypot(L, H - hf)]} /><meshStandardMaterial map={tex.ceiling} emissive="#ffd9a0" emissiveMap={tex.ceiling} emissiveIntensity={0.25} /></mesh>
       <mesh position={[-(HW - 0.2), 3.4, 0.6]} rotation={[0, Math.PI / 2, 0]}><planeGeometry args={[0.6, 0.22]} /><meshBasicMaterial color="#27e07a" toneMapped={false} /></mesh>
 
       {layout.rows.map((row) => (
