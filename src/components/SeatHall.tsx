@@ -31,8 +31,10 @@ type Rig = { layout: Layout; mode: CamMode; seat: string | null; input: MutableR
 function CameraRig({ layout, mode, seat, input, onWalk }: Rig) {
   const { camera, gl } = useThree();
   const pos = useRef(camera.position.clone());
-  const yaw = useRef(0);
-  const pitch = useRef(-0.3);
+  // Opens looking straight down with the screen at the bottom, matching the 2D seat map, then swoops in.
+  const yaw = useRef(Math.PI);
+  const pitch = useRef(-1.5);
+  const swoop = useRef(true);
   const goalPos = useRef<THREE.Vector3 | null>(null);
   const goalAng = useRef<{ yaw: number; pitch: number } | null>(null);
   const keys = useRef({ f: false, b: false, l: false, r: false });
@@ -111,11 +113,12 @@ function CameraRig({ layout, mode, seat, input, onWalk }: Rig) {
   }, [mode, seat, layout]);
 
   useFrame((_, dt) => {
-    const k = Math.min(1, dt * 3.2);
+    // the first move from the map view is a slower, cinematic swoop
+    const k = Math.min(1, dt * (swoop.current ? 1.6 : 3.2));
     if (goalPos.current) {
       // Straight-line glide: a curved path would cut through walls and seats.
       pos.current.lerp(goalPos.current, k);
-      if (pos.current.distanceTo(goalPos.current) < 0.02) goalPos.current = null;
+      if (pos.current.distanceTo(goalPos.current) < 0.02) { goalPos.current = null; swoop.current = false; }
     }
     if (goalAng.current) {
       yaw.current = lerpAngle(yaw.current, goalAng.current.yaw, k);
@@ -149,7 +152,7 @@ export default function SeatHall(props: {
   mode: CamMode; seat: string | null; input: MutableRefObject<HallInput>; onWalk: () => void;
 }) {
   return (
-    <Canvas camera={{ position: [0, 7.2, props.layout.depth - 0.6], fov: 65, far: 80 }} dpr={[1, 1.5]} style={{ touchAction: "none" }}>
+    <Canvas camera={{ position: [0, props.layout.height - 0.7, (props.layout.rows[0].z + props.layout.zLast) / 2], fov: 65, far: 80 }} dpr={[1, 1.5]} style={{ touchAction: "none" }}>
       <color attach="background" args={["#050508"]} />
       <CameraRig layout={props.layout} mode={props.mode} seat={props.seat} input={props.input} onWalk={props.onWalk} />
       <Hall layout={props.layout} movie={props.movie} sold={props.sold} picked={props.picked} onPick={props.onPick} input={props.input} />
