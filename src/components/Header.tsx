@@ -9,7 +9,7 @@ export default function Header() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   return (
-    <header className="sticky top-0 z-50 flex items-center justify-between gap-3 border-b border-white/10 bg-ink/80 px-4 py-3 backdrop-blur md:px-8">
+    <header className="sticky top-0 z-50 flex items-center justify-between gap-3 border-b border-white/10 bg-ink/80 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-xl md:px-8">
       <Link href="/" className="text-xl font-black tracking-[0.25em]">CINE<span className="text-brand">VERSE</span></Link>
       <nav className="flex items-center gap-3 text-sm">
         <select value={mounted ? city : "Mumbai"} onChange={(e) => setCity(e.target.value)} className="rounded-full border border-white/20 bg-panel px-3 py-1.5">

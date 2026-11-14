@@ -79,9 +79,11 @@ function bannerTexture(m: Movie, W: number, H: number, overlay?: (g: CanvasRende
 export const makeBannerTexture = (m: Movie) => bannerTexture(m, 1024, 512);
 
 // Cinema hall screen: same art with a vignette so it reads as a projected image.
-export const makeScreenTexture = (m: Movie) =>
-  bannerTexture(m, 1880, 800, (g) => {
-    const vig = g.createRadialGradient(940, 400, 300, 940, 400, 1100);
-    vig.addColorStop(0, "rgba(0,0,0,0)"); vig.addColorStop(1, "rgba(0,0,0,0.5)");
-    g.fillStyle = vig; g.fillRect(0, 0, 1880, 800);
+export const makeScreenTexture = (m: Movie, aspect: number) => {
+  const W = 2048, H = Math.round(W / aspect);
+  return bannerTexture(m, W, H, (g) => {
+    const vig = g.createRadialGradient(W / 2, H / 2, H * 0.4, W / 2, H / 2, W * 0.62);
+    vig.addColorStop(0, "rgba(0,0,0,0)"); vig.addColorStop(1, "rgba(0,0,0,0.45)");
+    g.fillStyle = vig; g.fillRect(0, 0, W, H);
   });
+};

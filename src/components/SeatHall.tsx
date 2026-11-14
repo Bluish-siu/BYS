@@ -4,7 +4,7 @@ import { MutableRefObject, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { Movie } from "@/lib/data";
 import type { Layout } from "@/lib/layouts";
-import { Hall, SCREEN_POS } from "./HallModel";
+import { Hall, screenSpec } from "./HallModel";
 
 export type CamMode = "overview" | "stage" | "balcony" | "bird" | "seat" | "walk";
 
@@ -26,9 +26,10 @@ const lerpAngle = (a: number, b: number, k: number) => {
   return a + d * k;
 };
 
-type Rig = { layout: Layout; mode: CamMode; seat: string | null; input: MutableRefObject<HallInput>; onWalk: () => void };
+type Rig = { layout: Layout; format: string; mode: CamMode; seat: string | null; input: MutableRefObject<HallInput>; onWalk: () => void };
 
-function CameraRig({ layout, mode, seat, input, onWalk }: Rig) {
+function CameraRig({ layout, format, mode, seat, input, onWalk }: Rig) {
+  const screen = useMemo(() => screenSpec(format), [format]);
   const { camera, gl } = useThree();
   const pos = useRef(camera.position.clone());
   // Opens looking straight down with the screen at the bottom, matching the 2D seat map, then swoops in.
@@ -40,13 +41,13 @@ function CameraRig({ layout, mode, seat, input, onWalk }: Rig) {
   const keys = useRef({ f: false, b: false, l: false, r: false });
   const drag = useRef<{ x: number; y: number; total: number } | null>(null);
 
-  const bounds = useMemo(() => ({ x: 6.2, yMin: 0.5, yMax: layout.height - 0.4, zMin: -3.6, zMax: layout.depth - 0.5 }), [layout]);
+  const bounds = useMemo(() => ({ x: 6.2, yMin: 0.5, yMax: layout.height - 0.4, zMin: -3.6, zMax: layout.zLast + 0.7 }), [layout]);
   const presets = useMemo(() => {
     const D = layout.depth;
     return {
-      overview: { pos: new THREE.Vector3(0, Math.min(layout.yLast + 4.5, layout.height - 0.6), D - 0.6), look: new THREE.Vector3(0, 1.8, D * 0.3) },
+      overview: { pos: new THREE.Vector3(0, Math.min(layout.yLast + 4.2, layout.height - 0.6), layout.zLast + 0.7), look: new THREE.Vector3(0, 1.8, D * 0.3) },
       stage: { pos: new THREE.Vector3(0, 1.7, -1.6), look: new THREE.Vector3(0, 2.6 + layout.yLast * 0.5, D * 0.6) },
-      balcony: { pos: new THREE.Vector3(0, layout.yLast + 1.9, layout.zLast + 0.9), look: SCREEN_POS.clone() },
+      balcony: { pos: new THREE.Vector3(0, layout.yLast + 1.9, layout.zLast + 0.6), look: screen.pos.clone() },
       bird: { pos: new THREE.Vector3(0, layout.height - 0.7, D * 0.45), look: new THREE.Vector3(0, 0, D * 0.45 - 0.1) },
     };
   }, [layout]);
@@ -102,7 +103,7 @@ function CameraRig({ layout, mode, seat, input, onWalk }: Rig) {
     const s = row?.seats.find((x) => x.id === seat);
     if (mode === "seat" && row && s) {
       p = new THREE.Vector3(s.x, row.y + SIT_EYE, row.z + 0.12);
-      look = new THREE.Vector3(0, SCREEN_POS.y, SCREEN_POS.z);
+      look = screen.pos.clone();
     } else {
       const pr = presets[mode === "seat" ? "overview" : mode];
       p = pr.pos; look = pr.look;
@@ -110,7 +111,7 @@ function CameraRig({ layout, mode, seat, input, onWalk }: Rig) {
     goalPos.current = p.clone();
     goalAng.current = angles(p, look);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, seat, layout]);
+  }, [mode, seat, layout, screen]);
 
   useFrame((_, dt) => {
     // the first move from the map view is a slower, cinematic swoop
@@ -148,14 +149,14 @@ function CameraRig({ layout, mode, seat, input, onWalk }: Rig) {
 }
 
 export default function SeatHall(props: {
-  layout: Layout; movie: Movie; sold: Set<string>; picked: string[]; onPick: (id: string) => void;
+  layout: Layout; format: string; movie: Movie; sold: Set<string>; picked: string[]; onPick: (id: string) => void;
   mode: CamMode; seat: string | null; input: MutableRefObject<HallInput>; onWalk: () => void;
 }) {
   return (
     <Canvas camera={{ position: [0, props.layout.height - 0.7, (props.layout.rows[0].z + props.layout.zLast) / 2], fov: 65, far: 80 }} dpr={[1, 1.5]} style={{ touchAction: "none" }}>
       <color attach="background" args={["#050508"]} />
-      <CameraRig layout={props.layout} mode={props.mode} seat={props.seat} input={props.input} onWalk={props.onWalk} />
-      <Hall layout={props.layout} movie={props.movie} sold={props.sold} picked={props.picked} onPick={props.onPick} input={props.input} />
+      <CameraRig layout={props.layout} format={props.format} mode={props.mode} seat={props.seat} input={props.input} onWalk={props.onWalk} />
+      <Hall layout={props.layout} format={props.format} movie={props.movie} sold={props.sold} picked={props.picked} onPick={props.onPick} input={props.input} />
     </Canvas>
   );
 }

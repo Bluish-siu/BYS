@@ -30,7 +30,8 @@ export default function MoviePage() {
         <div className="absolute right-6 top-6 rounded-full border border-white/30 bg-black/40 px-3 py-1 text-xs tracking-widest">TRAILER PLAYING</div>
         <div className="relative w-full bg-gradient-to-t from-ink via-ink/60 to-transparent px-6 pb-10 pt-32 md:px-12">
           <p className="text-xs uppercase tracking-[0.3em] text-white/70">{movie.lang} · {movie.genre} · {movie.duration}</p>
-          <h1 className="mt-2 text-4xl font-black drop-shadow-lg md:text-6xl">{movie.title}</h1>
+          {/* real key art already carries the title, so keep the heading for screen readers only */}
+          <h1 className={movie.banner ? "sr-only" : "mt-2 text-4xl font-black drop-shadow-lg md:text-6xl"}>{movie.title}</h1>
           <p className="mt-3 max-w-2xl text-white/80">{movie.blurb}</p>
           <p className="mt-3 font-semibold text-gold">★ {movie.rating} / 10</p>
         </div>

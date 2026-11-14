@@ -25,6 +25,14 @@ npm run dev
 
 Then open http://localhost:3000.
 
+## Turning it into a mobile app
+
+The site is already installable as a PWA (`public/manifest.webmanifest`, `public/icon.svg`). Safe-area insets are handled, so it works under a notch.
+
+- **Fastest:** deploy to Vercel and use "Add to Home Screen" on a phone.
+- **Store apps:** wrap the deployed site with [Capacitor](https://capacitorjs.com) (`server.url` pointing at the Vercel URL) to ship iOS and Android builds.
+- **Later:** swap the dummy data in `src/lib/data.ts` and the persisted store in `src/lib/store.ts` for a real API. UI, 3D hall and pricing logic need no changes.
+
 ## Built with
 
 Next.js 14, React 18, TypeScript, Three.js with React Three Fiber, Tailwind CSS, Zustand and qrcode.

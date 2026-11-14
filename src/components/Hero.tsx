@@ -175,7 +175,16 @@ function Ring({ onFront, api }: { onFront: (i: number) => void; api: MutableRefO
   );
 }
 
-function Floor() {
+function Floor({ low }: { low: boolean }) {
+  if (low) {
+    // phones: a plain dark floor instead of a live mirror keeps the frame rate up
+    return (
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -SCREEN_H / 2 - 0.3, 0]}>
+        <circleGeometry args={[40, 32]} />
+        <meshStandardMaterial color="#07070c" metalness={0.6} roughness={0.35} />
+      </mesh>
+    );
+  }
   return (
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -SCREEN_H / 2 - 0.3, 0]}>
       <circleGeometry args={[40, 64]} />
@@ -189,6 +198,8 @@ function Floor() {
 
 export default function Hero() {
   const [front, setFront] = useState(0);
+  // touch devices and narrow screens get fewer particles, no mirror floor and a lower pixel ratio
+  const [low] = useState(() => typeof window !== "undefined" && (window.matchMedia("(pointer: coarse)").matches || window.innerWidth < 768));
   const api = useRef<HeroApi | null>(null);
   const m = featured[front];
   return (
@@ -196,13 +207,13 @@ export default function Hero() {
       className="relative h-[calc(100svh-57px)] min-h-[560px] w-full select-none overflow-hidden"
       style={{ background: `radial-gradient(ellipse at 50% 35%, hsl(${m.hue} 70% 22%), #05050a 70%)`, transition: "background 1s" }}
     >
-      <Canvas camera={{ position: [0, 0, 0.01], fov: 76, near: 0.1, far: 200 }} dpr={[1, 1.75]} style={{ touchAction: "pan-y" }}>
+      <Canvas camera={{ position: [0, 0, 0.01], fov: 76, near: 0.1, far: 200 }} dpr={low ? [1, 1.25] : [1, 1.75]} style={{ touchAction: "pan-y" }}>
         <fog attach="fog" args={["#05050a", 14, 60]} />
         <ambientLight intensity={0.6} />
-        <Stars radius={70} depth={40} count={3500} factor={3} fade speed={0.6} />
-        <Sparkles count={120} scale={[16, 7, 16]} size={2.2} speed={0.35} opacity={0.6} color="#ffe6c4" />
+        <Stars radius={70} depth={40} count={low ? 1200 : 3500} factor={3} fade speed={0.6} />
+        <Sparkles count={low ? 40 : 120} scale={[16, 7, 16]} size={2.2} speed={0.35} opacity={0.6} color="#ffe6c4" />
         <Ring onFront={setFront} api={api} />
-        <Floor />
+        <Floor low={low} />
       </Canvas>
 
       {/* top badge */}

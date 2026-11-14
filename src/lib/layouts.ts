@@ -105,7 +105,7 @@ export function buildLayout(def: LayoutDef): Layout {
   const byId = new Map<string, RowSpec>();
   rows.forEach((row) => row.seats.forEach((s) => byId.set(s.id, row)));
   return {
-    id: def.id, rows, legend, zLast: last.z, yLast: last.y, depth: last.z + 3, height: Math.max(9, last.y + 5.2),
+    id: def.id, rows, legend, zLast: last.z, yLast: last.y, depth: last.z + 1.8, height: Math.max(9, last.y + 5.2),
     seatIds: rows.flatMap((row) => row.seats.map((s) => s.id)), byId,
   };
 }

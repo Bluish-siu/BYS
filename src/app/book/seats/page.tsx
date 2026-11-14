@@ -158,17 +158,17 @@ export default function SeatsPage() {
             <button onClick={() => setTour((t) => !t)} className={`btn shrink-0 !px-3 !py-1.5 text-xs ${tour ? "btn-brand" : "btn-ghost"}`}>{tour ? "Stop tour" : "Auto tour"}</button>
           </div>
           <div className="fade-in relative min-h-0 flex-1">
-            <SeatHall layout={layout} movie={movie} sold={sold} picked={picked} onPick={toggle} mode={mode} seat={last} input={input} onWalk={onWalk} />
-            <div className="pointer-events-none absolute left-3 top-3 max-h-[70%] space-y-1 overflow-hidden rounded-xl bg-black/60 p-3 text-xs">
+            <SeatHall layout={layout} format={booking.format} movie={movie} sold={sold} picked={picked} onPick={toggle} mode={mode} seat={last} input={input} onWalk={onWalk} />
+            <div className="pointer-events-none absolute left-3 top-3 max-h-[70%] space-y-1.5 overflow-hidden rounded-2xl border border-white/10 bg-black/45 p-3 text-[11px] backdrop-blur-md">
               {layout.legend.map((l) => (
                 <div key={`${l.kind}${l.price}`} className="flex items-center gap-2"><span className="h-3 w-3 rounded-sm" style={{ background: KIND_COLOR[l.kind] }} />{l.name} ₹{l.price}</div>
               ))}
               <div className="flex items-center gap-2"><span className="h-3 w-3 rounded-sm" style={{ background: "#2ee08a" }} />Your pick</div>
               <div className="flex items-center gap-2"><span className="h-3 w-3 rounded-sm" style={{ background: "#2b2b31" }} />Sold</div>
-              <div className="pt-1 text-white/50">Drag to look 360°<br />WASD / arrows to walk<br />Tap a seat to sit there</div>
+              <div className="hidden pt-1 text-white/45 sm:block">Drag to look 360°<br />WASD or arrows to walk<br />Tap a seat to sit there</div>
             </div>
             {mode === "seat" && last && lastRow && (
-              <div className="pointer-events-none absolute left-1/2 top-3 -translate-x-1/2 whitespace-nowrap rounded-full bg-black/60 px-4 py-1.5 text-sm">
+              <div className="pointer-events-none absolute left-1/2 top-3 -translate-x-1/2 whitespace-nowrap rounded-full border border-white/10 bg-black/45 px-4 py-1.5 text-sm backdrop-blur-md">
                 View from seat <b>{last}</b> · {lastRow.section} · ₹{lastRow.price}
               </div>
             )}
@@ -185,7 +185,7 @@ export default function SeatsPage() {
         </>
       )}
 
-      <div className="flex flex-wrap items-center gap-3 border-t border-white/10 bg-panel px-4 py-3">
+      <div className="flex flex-wrap items-center gap-3 border-t border-white/10 bg-panel/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur">
         <div className="flex items-center gap-2 text-sm">
           <button className="btn btn-ghost !px-3 !py-1" onClick={() => setQty(Math.max(1, qty - 1))}>-</button>
           <span className="w-4 text-center">{qty}</span>
