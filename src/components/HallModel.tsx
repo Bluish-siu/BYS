@@ -12,7 +12,7 @@ import type { HallInput } from "./SeatHall";
 export type ScreenSpec = { w: number; h: number; aspect: number; pos: THREE.Vector3 };
 export const screenSpec = (format: string): ScreenSpec => {
   const aspect = format === "IMAX" ? 1.9 : 2.39;
-  const w = 16, h = w / aspect; // big enough to fill most of your view from the middle rows
+  const w = 17.6, h = w / aspect; // wall to wall
   return { w, h, aspect, pos: new THREE.Vector3(0, 1.0 + h / 2, -2.9) };
 };
 const HALL_W = 18;
@@ -186,7 +186,7 @@ export function Hall({ layout, format, movie, sold, picked, onPick, input }: {
   const screenGeo = useMemo(() => {
     const g = new THREE.PlaneGeometry(spec.w, spec.h, 64, 1);
     const p = g.attributes.position;
-    for (let i = 0; i < p.count; i++) p.setZ(i, (p.getX(i) ** 2) * 0.011);
+    for (let i = 0; i < p.count; i++) p.setZ(i, (p.getX(i) ** 2) * 0.008);
     g.computeVertexNormals();
     return g;
   }, [spec]);
@@ -206,16 +206,13 @@ export function Hall({ layout, format, movie, sold, picked, onPick, input }: {
         <meshBasicMaterial map={screenTex} toneMapped={false} side={THREE.DoubleSide} />
       </mesh>
       {/* black frame and masking panels, glowing halo and a light strip under the screen */}
-      <mesh position={[0, sy, sz - 0.06]}><boxGeometry args={[spec.w + 0.7, spec.h + 0.7, 0.1]} /><meshStandardMaterial color="#030305" roughness={0.9} /></mesh>
+      <mesh position={[0, sy, sz - 0.06]}><boxGeometry args={[HALL_W - 0.05, spec.h + 0.5, 0.1]} /><meshStandardMaterial color="#030305" roughness={0.9} /></mesh>
       <mesh position={[0, sy, sz - 0.2]}>
         <planeGeometry args={[spec.w * 1.5, spec.h * 1.7]} />
         <meshBasicMaterial map={halo} color={`hsl(${movie.hue} 85% 55%)`} transparent opacity={0.45} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
       </mesh>
-      <mesh position={[0, sy - spec.h / 2 - 0.5, sz + 0.05]}><boxGeometry args={[spec.w + 0.7, 0.04, 0.04]} /><meshBasicMaterial color={`hsl(${movie.hue} 90% 70%)`} toneMapped={false} /></mesh>
+      <mesh position={[0, sy - spec.h / 2 - 0.5, sz + 0.05]}><boxGeometry args={[spec.w, 0.04, 0.04]} /><meshBasicMaterial color={`hsl(${movie.hue} 90% 70%)`} toneMapped={false} /></mesh>
       <mesh position={[0, 0.2, -2.4]}><boxGeometry args={[HALL_W - 0.6, 0.4, 2.2]} /><meshStandardMaterial color="#0e0e12" roughness={0.6} /></mesh>
-      {[-(HW - 0.4), HW - 0.4].map((x) => (
-        <mesh key={x} position={[x, sy + spec.h / 2 + 0.3, -3.3]}><boxGeometry args={[0.5, 0.9, 0.4]} /><meshStandardMaterial color="#0b0b0f" roughness={0.5} metalness={0.3} /></mesh>
-      ))}
 
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, cz]}><planeGeometry args={[HALL_W, L]} /><meshStandardMaterial map={tex.floor} roughness={1} /></mesh>
       <mesh position={[0, H / 2, -3.8]}><planeGeometry args={[HALL_W, H]} /><meshStandardMaterial map={tex.backWall} roughness={0.95} /></mesh>
