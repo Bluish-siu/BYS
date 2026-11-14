@@ -2,10 +2,11 @@ export type Movie = {
   id: string; title: string; lang: string; genre: string; rating: number;
   duration: string; year: number; blurb: string; hue: number; hue2: number;
   banner?: string; // widescreen key art in /public/posters
+  trailer?: string; // YouTube video id, played on the 3D screen
 };
 
 export const movies: Movie[] = [
-  { id: "ramayana", title: "Ramayana", lang: "Hindi", genre: "Mythological Epic", rating: 9.1, duration: "3h 05m", year: 2026, blurb: "The timeless epic of Rama, retold on a cosmic scale in IMAX 3D.", hue: 210, hue2: 20, banner: "/posters/ramayana.png" },
+  { id: "ramayana", title: "Ramayana", lang: "Hindi", genre: "Mythological Epic", rating: 9.1, duration: "3h 05m", year: 2026, blurb: "The timeless epic of Rama, retold on a cosmic scale in IMAX 3D.", hue: 210, hue2: 20, banner: "/posters/ramayana.png", trailer: "T0Uduwg2W2w" },
   { id: "jailer-2", title: "Jailer 2", lang: "Tamil", genre: "Action", rating: 8.7, duration: "2h 45m", year: 2026, blurb: "Superstar Rajinikanth returns in the explosive sequel.", hue: 195, hue2: 28, banner: "/posters/jailer2.webp" },
   { id: "drishyam-conclusion", title: "Drishyam: The Conclusion", lang: "Hindi", genre: "Crime Thriller", rating: 8.5, duration: "2h 30m", year: 2026, blurb: "The final chapter of the gripping Drishyam saga.", hue: 180, hue2: 200, banner: "/posters/drishyam.webp" },
   { id: "prahaar", title: "Prahaar", lang: "Hindi", genre: "Biographical Drama", rating: 8.0, duration: "2h 20m", year: 2026, blurb: "The untold story of Ujjwal Nikam.", hue: 30, hue2: 10, banner: "/posters/prahaar.png" },

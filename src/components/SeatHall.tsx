@@ -1,6 +1,6 @@
 "use client";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { MutableRefObject, useEffect, useMemo, useRef } from "react";
+import { MutableRefObject, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { Movie } from "@/lib/data";
 import type { Layout } from "@/lib/layouts";
@@ -155,15 +155,110 @@ function CameraRig({ layout, format, mode, seat, input, onWalk }: Rig) {
   return null;
 }
 
+// Projects the flat screen's corners to pixels and warps the trailer iframe (behind the canvas) onto them.
+function solve(A: number[][], b: number[]) {
+  const n = b.length;
+  for (let i = 0; i < n; i++) {
+    let m = i;
+    for (let r = i + 1; r < n; r++) if (Math.abs(A[r][i]) > Math.abs(A[m][i])) m = r;
+    [A[i], A[m]] = [A[m], A[i]]; [b[i], b[m]] = [b[m], b[i]];
+    for (let r = i + 1; r < n; r++) {
+      const f = A[r][i] / A[i][i];
+      for (let c = i; c < n; c++) A[r][c] -= f * A[i][c];
+      b[r] -= f * b[i];
+    }
+  }
+  const x = new Array(n).fill(0);
+  for (let i = n - 1; i >= 0; i--) {
+    let t = b[i];
+    for (let c = i + 1; c < n; c++) t -= A[i][c] * x[c];
+    x[i] = t / A[i][i];
+  }
+  return x;
+}
+
+const IFW = 1600;
+function TrailerLink({ format, frame }: { format: string; frame: MutableRefObject<HTMLIFrameElement | null> }) {
+  const spec = useMemo(() => screenSpec(format), [format]);
+  const ifh = IFW * 9 / 16; // the video is 16:9; it is scaled to cover the whole screen and the 3D frame trims the overflow
+  const corners = useMemo(() => {
+    const cw = Math.max(spec.w, (spec.h * 16) / 9) * 1.03, ch = (cw * 9) / 16;
+    return [[-1, 1], [1, 1], [1, -1], [-1, -1]].map(([sx, sy]) => new THREE.Vector3(sx * cw / 2, spec.pos.y + sy * ch / 2, spec.pos.z));
+  }, [spec]);
+  const { camera, size } = useThree();
+  useFrame(() => {
+    const el = frame.current;
+    if (!el) return;
+    camera.updateMatrixWorld();
+    const pts: number[][] = [];
+    for (const c of corners) {
+      const v = c.clone().applyMatrix4(camera.matrixWorldInverse);
+      if (v.z > -0.1) { el.style.opacity = "0"; return; } // screen behind the camera
+      v.applyMatrix4(camera.projectionMatrix);
+      // applyMatrix4 on a Vector3 divides by w already
+      pts.push([(v.x * 0.5 + 0.5) * size.width, (-v.y * 0.5 + 0.5) * size.height]);
+    }
+    const src = [[0, 0], [IFW, 0], [IFW, ifh], [0, ifh]];
+    const A: number[][] = [], b: number[] = [];
+    for (let i = 0; i < 4; i++) {
+      const [x, y] = src[i], [u, v] = pts[i];
+      A.push([x, y, 1, 0, 0, 0, -x * u, -y * u]); b.push(u);
+      A.push([0, 0, 0, x, y, 1, -x * v, -y * v]); b.push(v);
+    }
+    const h = solve(A, b);
+    el.style.opacity = "1";
+    el.style.width = IFW + "px"; el.style.height = ifh + "px";
+    el.style.transform = `matrix3d(${h[0]},${h[3]},0,${h[6]},${h[1]},${h[4]},0,${h[7]},0,0,1,0,${h[2]},${h[5]},0,1)`;
+  });
+  return null;
+}
+
 export default function SeatHall(props: {
   layout: Layout; format: string; movie: Movie; sold: Set<string>; picked: string[]; onPick: (id: string) => void;
   mode: CamMode; seat: string | null; input: MutableRefObject<HallInput>; onWalk: () => void;
 }) {
+  const trailer = props.movie.trailer;
+  const frame = useRef<HTMLIFrameElement | null>(null);
+  const [muted, setMuted] = useState(true);
+  const yt = (func: string, args: unknown[] = []) => frame.current?.contentWindow?.postMessage(JSON.stringify({ event: "command", func, args }), "*");
+  // Follow the player's real mute state, and try to turn sound on by itself (allowed once you have tapped the page).
+  useEffect(() => {
+    const on = (e: MessageEvent) => {
+      if (typeof e.origin !== "string" || !e.origin.includes("youtube.com") || typeof e.data !== "string") return;
+      try { const d = JSON.parse(e.data); if (typeof d?.info?.muted === "boolean") setMuted(d.info.muted); } catch { /* not ours */ }
+    };
+    window.addEventListener("message", on);
+    return () => window.removeEventListener("message", on);
+  }, []);
+  const onLoad = () => {
+    const w = frame.current?.contentWindow;
+    w?.postMessage(JSON.stringify({ event: "listening", id: 1, channel: "widget" }), "*");
+    [1200, 2800, 5000].forEach((t) => setTimeout(() => { yt("unMute"); yt("setVolume", [100]); yt("playVideo"); }, t));
+  };
+  const toggleSound = () => { if (muted) { yt("unMute"); yt("setVolume", [100]); yt("playVideo"); } else yt("mute"); };
   return (
-    <Canvas camera={{ position: [0, props.layout.height - 0.7, (props.layout.rows[0].z + props.layout.zLast) / 2], fov: 65, far: 80 }} dpr={[1, 1.5]} style={{ touchAction: "none" }}>
-      <color attach="background" args={["#050508"]} />
-      <CameraRig layout={props.layout} format={props.format} mode={props.mode} seat={props.seat} input={props.input} onWalk={props.onWalk} />
-      <Hall layout={props.layout} format={props.format} movie={props.movie} sold={props.sold} picked={props.picked} onPick={props.onPick} input={props.input} />
-    </Canvas>
+    <div style={{ position: "relative", width: "100%", height: "100%", background: "#050508", overflow: "hidden" }}>
+      {trailer && (
+        <iframe
+          ref={frame}
+          onLoad={onLoad}
+          title="Trailer"
+          src={`https://www.youtube.com/embed/${trailer}?autoplay=1&mute=1&controls=0&loop=1&playlist=${trailer}&modestbranding=1&rel=0&playsinline=1&iv_load_policy=3&disablekb=1&enablejsapi=1`}
+          allow="autoplay; encrypted-media; picture-in-picture" referrerPolicy="strict-origin-when-cross-origin"
+          style={{ position: "absolute", left: 0, top: 0, border: 0, transformOrigin: "0 0", width: IFW, height: (IFW * 9) / 16, opacity: 0, pointerEvents: "none", background: "#000" }}
+        />
+      )}
+      <div style={{ position: "absolute", inset: 0, opacity: trailer ? 0.999 : 1 }}>
+        <Canvas camera={{ position: [0, props.layout.height - 0.7, (props.layout.rows[0].z + props.layout.zLast) / 2], fov: 65, far: 80 }} dpr={[1, 1.5]} gl={{ alpha: true, premultipliedAlpha: true }} onCreated={({ gl }) => gl.setClearColor(0x000000, 0)} style={{ touchAction: "none", background: "transparent" }}>
+          {!trailer && <color attach="background" args={["#050508"]} />}
+          <CameraRig layout={props.layout} format={props.format} mode={props.mode} seat={props.seat} input={props.input} onWalk={props.onWalk} />
+          {trailer && <TrailerLink format={props.format} frame={frame} />}
+          <Hall layout={props.layout} format={props.format} movie={props.movie} sold={props.sold} picked={props.picked} onPick={props.onPick} input={props.input} />
+        </Canvas>
+      </div>
+      {trailer && (
+        <button onClick={toggleSound} className="btn btn-ghost absolute bottom-3 left-3 z-10 !px-3 !py-1.5 text-xs backdrop-blur-md">{muted ? "🔇 Tap for sound" : "🔊 Mute"}</button>
+      )}
+    </div>
   );
 }

@@ -185,11 +185,12 @@ export function Hall({ layout, format, movie, sold, picked, onPick, input }: {
   // Slightly curved screen: edges bend toward the audience like a real cinema screen.
   const screenGeo = useMemo(() => {
     const g = new THREE.PlaneGeometry(spec.w, spec.h, 64, 1);
+    if (movie.trailer) return g; // a playing trailer sits on a flat screen so the video lines up
     const p = g.attributes.position;
     for (let i = 0; i < p.count; i++) p.setZ(i, (p.getX(i) ** 2) * 0.008);
     g.computeVertexNormals();
     return g;
-  }, [spec]);
+  }, [spec, movie.trailer]);
   const sy = spec.pos.y, sz = spec.pos.z;
   const r0 = layout.rows[0], rN = layout.rows[layout.rows.length - 1];
   const hf = Math.min(H - 2, sy + spec.h / 2 + 1.4); // ceiling is low above the screen and rises toward the back
@@ -203,7 +204,9 @@ export function Hall({ layout, format, movie, sold, picked, onPick, input }: {
       <pointLight position={[0, sy, sz + 2.5]} intensity={22} color={`hsl(${movie.hue} 70% 75%)`} />
 
       <mesh geometry={screenGeo} position={spec.pos.toArray()}>
-        <meshBasicMaterial map={screenTex} toneMapped={false} side={THREE.DoubleSide} />
+        {movie.trailer
+          ? <meshBasicMaterial colorWrite={false} side={THREE.DoubleSide} /> /* transparent cut-out: the trailer plays behind the canvas */
+          : <meshBasicMaterial map={screenTex} toneMapped={false} side={THREE.DoubleSide} />}
       </mesh>
       {/* black frame and masking panels, glowing halo and a light strip under the screen */}
       <mesh position={[0, sy, sz - 0.06]}><boxGeometry args={[HALL_W - 0.05, spec.h + 0.5, 0.1]} /><meshStandardMaterial color="#030305" roughness={0.9} /></mesh>
