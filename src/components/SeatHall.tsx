@@ -30,7 +30,7 @@ type Rig = { layout: Layout; format: string; mode: CamMode; seat: string | null;
 
 function CameraRig({ layout, format, mode, seat, input, onWalk }: Rig) {
   const screen = useMemo(() => screenSpec(format), [format]);
-  const { camera, gl } = useThree();
+  const { camera, gl, size } = useThree();
   const pos = useRef(camera.position.clone());
   // Opens looking straight down with the screen at the bottom, matching the 2D seat map, then swoops in.
   const yaw = useRef(Math.PI);
@@ -144,6 +144,13 @@ function CameraRig({ layout, format, mode, seat, input, onWalk }: Rig) {
     camera.position.copy(pos.current);
     camera.rotation.order = "YXZ";
     camera.rotation.set(pitch.current, yaw.current, 0);
+    // Sitting down, you focus on the screen: zoom in so it spans about 70 degrees of your view, whatever the window shape.
+    const cam = camera as THREE.PerspectiveCamera;
+    const aspect = size.width / size.height;
+    const wantFov = mode === "seat"
+      ? THREE.MathUtils.clamp(THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(35)) / aspect)), 40, 85)
+      : 65;
+    if (Math.abs(cam.fov - wantFov) > 0.05) { cam.fov += (wantFov - cam.fov) * Math.min(1, dt * 3); cam.updateProjectionMatrix(); }
   });
   return null;
 }

@@ -81,7 +81,7 @@ export function buildLayout(def: LayoutDef): Layout {
     for (let i = 0; i < sec.rows; i++) {
       const step = ROW_STEP[sec.kind];
       // stadium rise so every row clears the headrests in front
-      if (r > 0) { z += step + (i === 0 ? 0.4 : 0); y += i === 0 ? 0.6 : 0.45; }
+      if (r > 0) { z += step + (i === 0 ? 0.4 : 0); y += i === 0 ? 0.85 : 0.45; }
       const gaps = sec.gaps ?? [];
       let pitch = PITCH[sec.kind];
       if (sec.seats * pitch + gaps.length * GAP > MAX_W) pitch = (MAX_W - gaps.length * GAP) / sec.seats;
