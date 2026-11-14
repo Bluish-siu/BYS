@@ -2,14 +2,14 @@
 import Link from "next/link";
 import QRCode from "qrcode";
 import { useEffect, useState } from "react";
-import { getMovie, findTheatre } from "@/lib/data";
+import { getMovie, movies, findTheatre } from "@/lib/data";
 import type { Ticket } from "@/lib/store";
 import { dayLabel } from "@/lib/pricing";
 
 export default function TicketCard({ ticket, link = false }: { ticket: Ticket; link?: boolean }) {
   const [qr, setQr] = useState("");
   const b = ticket.booking;
-  const movie = getMovie(b.movieId)!;
+  const movie = (getMovie(b.movieId) ?? movies[0]);
   const theatre = findTheatre(b.theatreId);
   useEffect(() => {
     QRCode.toDataURL(`PICKMYSEAT|${ticket.id}|${b.seats.join(",")}`, { margin: 1, width: 220 }).then(setQr);

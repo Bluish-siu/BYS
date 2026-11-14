@@ -1,7 +1,7 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { getMovie, snacks, findTheatre } from "@/lib/data";
+import { getMovie, movies, snacks, findTheatre } from "@/lib/data";
 import { useStore } from "@/lib/store";
 import { FEE, dayLabel, grandTotal, seatsTotal, useHydrated } from "@/lib/pricing";
 
@@ -14,7 +14,7 @@ export default function PayPage() {
   useEffect(() => { if (ready && !paying && (!booking || !booking.seats.length)) router.replace("/"); }, [ready, paying, booking, router]);
   if (!ready || !booking) return <p className="p-10 text-white/60">Loading...</p>;
 
-  const movie = getMovie(booking.movieId)!;
+  const movie = (getMovie(booking.movieId) ?? movies[0]);
   const theatre = findTheatre(booking.theatreId);
   const total = grandTotal(booking);
 
