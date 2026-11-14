@@ -41,7 +41,7 @@ function CameraRig({ layout, format, mode, seat, input, onWalk }: Rig) {
   const keys = useRef({ f: false, b: false, l: false, r: false });
   const drag = useRef<{ x: number; y: number; total: number } | null>(null);
 
-  const bounds = useMemo(() => ({ x: 6.2, yMin: 0.5, yMax: layout.height - 0.4, zMin: -3.6, zMax: layout.zLast + 0.7 }), [layout]);
+  const bounds = useMemo(() => ({ x: 8.3, yMin: 0.5, yMax: layout.height - 0.4, zMin: -3.6, zMax: layout.zLast + 0.7 }), [layout]);
   const presets = useMemo(() => {
     const D = layout.depth;
     return {

@@ -12,10 +12,11 @@ import type { HallInput } from "./SeatHall";
 export type ScreenSpec = { w: number; h: number; aspect: number; pos: THREE.Vector3 };
 export const screenSpec = (format: string): ScreenSpec => {
   const aspect = format === "IMAX" ? 1.9 : 2.39;
-  const w = 11.6, h = w / aspect;
+  const w = 16, h = w / aspect; // big enough to fill most of your view from the middle rows
   return { w, h, aspect, pos: new THREE.Vector3(0, 1.0 + h / 2, -2.9) };
 };
-const HALL_W = 13;
+const HALL_W = 18;
+const HW = HALL_W / 2;
 
 // ---------- seat models: each seat is two meshes (fabric + dark hardware) to keep draw calls low ----------
 const rb = (w: number, h: number, d: number, r: number, x: number, y: number, z: number, rx = 0) =>
@@ -204,8 +205,8 @@ export function Hall({ layout, format, movie, sold, picked, onPick, input }: {
         <meshBasicMaterial map={halo} color={`hsl(${movie.hue} 85% 55%)`} transparent opacity={0.45} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
       </mesh>
       <mesh position={[0, sy - spec.h / 2 - 0.5, sz + 0.05]}><boxGeometry args={[spec.w + 0.7, 0.04, 0.04]} /><meshBasicMaterial color={`hsl(${movie.hue} 90% 70%)`} toneMapped={false} /></mesh>
-      <mesh position={[0, 0.2, -2.4]}><boxGeometry args={[12.6, 0.4, 2.2]} /><meshStandardMaterial color="#0e0e12" roughness={0.6} /></mesh>
-      {[-6.2, 6.2].map((x) => (
+      <mesh position={[0, 0.2, -2.4]}><boxGeometry args={[HALL_W - 0.6, 0.4, 2.2]} /><meshStandardMaterial color="#0e0e12" roughness={0.6} /></mesh>
+      {[-(HW - 0.4), HW - 0.4].map((x) => (
         <mesh key={x} position={[x, sy + spec.h / 2 + 0.3, -3.3]}><boxGeometry args={[0.5, 0.9, 0.4]} /><meshStandardMaterial color="#0b0b0f" roughness={0.5} metalness={0.3} /></mesh>
       ))}
 
@@ -216,28 +217,28 @@ export function Hall({ layout, format, movie, sold, picked, onPick, input }: {
       {[-3.6, -1.2, 1.2, 3.6].map((x) => (
         <mesh key={x} position={[x, layout.yLast + 3.5, D - 0.03]} rotation={[0, Math.PI, 0]}><planeGeometry args={[0.9, 0.5]} /><meshBasicMaterial color="#a9dcff" toneMapped={false} /></mesh>
       ))}
-      {[-5.8, 5.8].map((x) => (
+      {[-(HW - 0.9), HW - 0.9].map((x) => (
         <mesh key={x} position={[x, layout.yLast + 2.4, D - 0.03]} rotation={[0, Math.PI, 0]}><planeGeometry args={[0.6, 0.22]} /><meshBasicMaterial color="#27e07a" toneMapped={false} /></mesh>
       ))}
       <pointLight position={[0, layout.yLast + 3, D - 1]} intensity={22} color="#ffd9b0" />
       {[-1, 1].map((s) => (
         <group key={s}>
-          <mesh position={[s * 6.5, H / 2, cz]} rotation={[0, -s * Math.PI / 2, 0]}><planeGeometry args={[L, H]} /><meshStandardMaterial map={tex.wall} roughness={0.9} /></mesh>
-          <mesh position={[s * 6.4, 4.2, -1.2]} rotation={[0, -s * Math.PI / 2, 0]}><planeGeometry args={[5.2, 8]} /><meshStandardMaterial map={tex.curtain} roughness={1} /></mesh>
+          <mesh position={[s * HW, H / 2, cz]} rotation={[0, -s * Math.PI / 2, 0]}><planeGeometry args={[L, H]} /><meshStandardMaterial map={tex.wall} roughness={0.9} /></mesh>
+          <mesh position={[s * (HW - 0.1), H / 2, -1.2]} rotation={[0, -s * Math.PI / 2, 0]}><planeGeometry args={[5.2, H]} /><meshStandardMaterial map={tex.curtain} roughness={1} /></mesh>
           {sconceZ.map((z) => (
-            <mesh key={z} position={[s * 6.42, groundNear(layout.rows, z) + 2.4, z]}>
+            <mesh key={z} position={[s * (HW - 0.08), groundNear(layout.rows, z) + 2.4, z]}>
               <boxGeometry args={[0.08, 0.5, 0.14]} /><meshBasicMaterial color="#ffd9a0" toneMapped={false} />
             </mesh>
           ))}
         </group>
       ))}
       <mesh position={[0, H, cz]} rotation={[Math.PI / 2, 0, 0]}><planeGeometry args={[HALL_W, L]} /><meshStandardMaterial map={tex.ceiling} emissive="#ffd9a0" emissiveMap={tex.ceiling} emissiveIntensity={0.25} /></mesh>
-      <mesh position={[-6.3, 3.4, 0.6]} rotation={[0, Math.PI / 2, 0]}><planeGeometry args={[0.6, 0.22]} /><meshBasicMaterial color="#27e07a" toneMapped={false} /></mesh>
+      <mesh position={[-(HW - 0.2), 3.4, 0.6]} rotation={[0, Math.PI / 2, 0]}><planeGeometry args={[0.6, 0.22]} /><meshBasicMaterial color="#27e07a" toneMapped={false} /></mesh>
 
       {layout.rows.map((row) => (
         <group key={row.letter}>
           <mesh position={[0, row.y / 2, row.z]}>
-            <boxGeometry args={[12.8, Math.max(row.y, 0.02), row.step + 0.02]} />
+            <boxGeometry args={[HALL_W - 0.4, Math.max(row.y, 0.02), row.step + 0.02]} />
             <meshStandardMaterial map={tex.step} roughness={1} />
           </mesh>
           {/* amber step lights in every aisle gap */}
