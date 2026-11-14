@@ -4,7 +4,7 @@ import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { Movie } from "@/lib/data";
-import { KIND_COLOR, Kind, Layout, RowSpec } from "@/lib/layouts";
+import { KIND_COLOR, Kind, Layout } from "@/lib/layouts";
 import { makeScreenTexture } from "./PosterTexture";
 import type { HallInput } from "./SeatHall";
 
@@ -95,10 +95,10 @@ const leather = new Set<Kind>(["recliner", "lounger"]);
 const kindMat = new Map<Kind, THREE.MeshStandardMaterial>();
 const getKindMat = (k: Kind) => {
   let m = kindMat.get(k);
-  if (!m) { m = mat(KIND_COLOR[k], leather.has(k) ? 0.45 : 0.92); kindMat.set(k, m); }
+  if (!m) { m = mat("#" + new THREE.Color(KIND_COLOR[k]).lerp(new THREE.Color("#15151c"), 0.38).getHexString(), leather.has(k) ? 0.5 : 0.9); kindMat.set(k, m); }
   return m;
 };
-const SOLD = mat("#2b2b31", 0.95);
+const SOLD = mat("#3b3d47", 0.95);
 const PICKED = mat("#2ee08a", 0.6, { emissive: new THREE.Color("#18c46c"), emissiveIntensity: 0.9 });
 const DARK = mat("#17171c", 0.5, { metalness: 0.3 });
 
@@ -128,12 +128,15 @@ function canvasTex(w: number, h: number, draw: (g: CanvasRenderingContext2D) => 
 }
 
 const carpet = (rx: number, ry: number) => canvasTex(256, 256, (g) => {
-  g.fillStyle = "#3a0a12"; g.fillRect(0, 0, 256, 256);
-  for (let i = -2; i < 6; i++) for (let j = -2; j < 6; j++) {
-    g.strokeStyle = "#8c1a28"; g.lineWidth = 6;
-    g.beginPath(); g.arc(i * 64 + 32, j * 64 + 32, 28, 0, Math.PI * 2); g.stroke();
-    g.strokeStyle = "#5c0f1b";
-    g.beginPath(); g.arc(i * 64 + 32, j * 64 + 32, 14, 0, Math.PI * 2); g.stroke();
+  g.fillStyle = "#14161f"; g.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 1400; i++) {
+    g.fillStyle = Math.random() > 0.5 ? "rgba(255,255,255,0.035)" : "rgba(0,0,0,0.12)";
+    g.fillRect(Math.random() * 256, Math.random() * 256, 2, 2);
+  }
+  g.strokeStyle = "rgba(201,161,74,0.16)"; g.lineWidth = 1.5;
+  for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) {
+    const x = i * 64 + 32, y = j * 64 + 32;
+    g.beginPath(); g.moveTo(x, y - 14); g.lineTo(x + 14, y); g.lineTo(x, y + 14); g.lineTo(x - 14, y); g.closePath(); g.stroke();
   }
 }, [rx, ry]);
 
@@ -146,18 +149,20 @@ const curtain = () => canvasTex(256, 64, (g) => {
 });
 
 const wallPanel = (rx: number) => canvasTex(128, 128, (g) => {
-  g.fillStyle = "#14101a"; g.fillRect(0, 0, 128, 128);
-  g.fillStyle = "#c9a14a"; g.fillRect(0, 0, 4, 128);
-  g.fillStyle = "#1c1624"; g.fillRect(14, 0, 100, 128);
+  g.fillStyle = "#2a2d3c"; g.fillRect(0, 0, 128, 128);
+  for (let x = 0; x < 128; x += 16) {
+    g.fillStyle = "#3b4054"; g.fillRect(x + 2, 0, 12, 128);
+    g.fillStyle = "rgba(255,255,255,0.05)"; g.fillRect(x + 2, 0, 2, 128);
+    g.fillStyle = "rgba(0,0,0,0.35)"; g.fillRect(x + 12, 0, 2, 128);
+  }
 }, [rx, 1]);
 
 const ceilingTex = (rx: number, ry: number) => canvasTex(128, 128, (g) => {
-  g.fillStyle = "#0b0b10"; g.fillRect(0, 0, 128, 128);
-  g.strokeStyle = "#1a1a22"; g.lineWidth = 3; g.strokeRect(0, 0, 128, 128);
-  g.fillStyle = "#ffd9a0"; g.beginPath(); g.arc(64, 64, 4, 0, Math.PI * 2); g.fill();
+  g.fillStyle = "#12131a"; g.fillRect(0, 0, 128, 128);
+  g.strokeStyle = "#1c1e28"; g.lineWidth = 2; g.strokeRect(0, 0, 128, 128);
+  g.fillStyle = "#ffe2b0"; g.beginPath(); g.arc(64, 64, 3, 0, Math.PI * 2); g.fill();
 }, [rx, ry]);
 
-const groundNear = (rows: RowSpec[], z: number) => rows.reduce((b, r) => (Math.abs(r.z - z) < Math.abs(b.z - z) ? r : b), rows[0]).y;
 
 // Soft radial glow used behind the screen.
 const haloTex = () => canvasTex(256, 256, (g) => {
@@ -186,11 +191,12 @@ export function Hall({ layout, format, movie, sold, picked, onPick, input }: {
     return g;
   }, [spec]);
   const sy = spec.pos.y, sz = spec.pos.z;
-  const sconceZ = useMemo(() => { const a: number[] = []; for (let z = 2; z < D - 1; z += 3.2) a.push(z); return a; }, [D]);
+  const r0 = layout.rows[0], rN = layout.rows[layout.rows.length - 1];
+  const slopeLen = Math.hypot(rN.z - r0.z, rN.y - r0.y);
 
   return (
     <>
-      <ambientLight intensity={0.45} />
+      <ambientLight intensity={0.6} />
       <pointLight position={[0, H - 1, D * 0.3]} intensity={45} color="#ffd9b0" />
       <pointLight position={[0, H - 1, D * 0.75]} intensity={35} color="#ffd9b0" />
       <pointLight position={[0, sy, sz + 2.5]} intensity={22} color={`hsl(${movie.hue} 70% 75%)`} />
@@ -211,7 +217,7 @@ export function Hall({ layout, format, movie, sold, picked, onPick, input }: {
       ))}
 
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, cz]}><planeGeometry args={[HALL_W, L]} /><meshStandardMaterial map={tex.floor} roughness={1} /></mesh>
-      <mesh position={[0, H / 2, -3.8]}><planeGeometry args={[HALL_W, H]} /><meshStandardMaterial color="#09090d" /></mesh>
+      <mesh position={[0, H / 2, -3.8]}><planeGeometry args={[HALL_W, H]} /><meshStandardMaterial color="#0d0e14" /></mesh>
       <mesh position={[0, H / 2, D]} rotation={[0, Math.PI, 0]}><planeGeometry args={[HALL_W, H]} /><meshStandardMaterial map={tex.backWall} roughness={0.9} /></mesh>
       {/* projection booth windows high on the back wall */}
       {[-3.6, -1.2, 1.2, 3.6].map((x) => (
@@ -224,10 +230,9 @@ export function Hall({ layout, format, movie, sold, picked, onPick, input }: {
       {[-1, 1].map((s) => (
         <group key={s}>
           <mesh position={[s * HW, H / 2, cz]} rotation={[0, -s * Math.PI / 2, 0]}><planeGeometry args={[L, H]} /><meshStandardMaterial map={tex.wall} roughness={0.9} /></mesh>
-          <mesh position={[s * (HW - 0.1), H / 2, -1.2]} rotation={[0, -s * Math.PI / 2, 0]}><planeGeometry args={[5.2, H]} /><meshStandardMaterial map={tex.curtain} roughness={1} /></mesh>
-          {sconceZ.map((z) => (
-            <mesh key={z} position={[s * (HW - 0.08), groundNear(layout.rows, z) + 2.4, z]}>
-              <boxGeometry args={[0.08, 0.5, 0.14]} /><meshBasicMaterial color="#ffd9a0" toneMapped={false} />
+          {[0.9, 2.6].map((o) => (
+            <mesh key={o} position={[s * (HW - 0.06), (r0.y + rN.y) / 2 + o, (r0.z + rN.z) / 2]} rotation={[-Math.atan2(rN.y - r0.y, rN.z - r0.z), 0, 0]}>
+              <boxGeometry args={[0.05, o < 1 ? 0.05 : 0.03, slopeLen]} /><meshBasicMaterial color={o < 1 ? "#ffcf8a" : "#8fb4ff"} toneMapped={false} />
             </mesh>
           ))}
         </group>
