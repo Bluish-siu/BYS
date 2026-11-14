@@ -1,6 +1,6 @@
 {
-  "name": "Cineverse",
-  "short_name": "Cineverse",
+  "name": "PickMySeat",
+  "short_name": "PickMySeat",
   "description": "Book movie tickets in a 3D cinema hall.",
   "start_url": "/",
   "display": "standalone",

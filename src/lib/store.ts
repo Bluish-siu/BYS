@@ -20,4 +20,4 @@ export const useStore = create<State>()(persist((set) => ({
   booking: null, setBooking: (booking) => set({ booking }),
   patch: (p) => set((s) => (s.booking ? { booking: { ...s.booking, ...p } } : s)),
   tickets: [], addTicket: (t) => set((s) => ({ tickets: [t, ...s.tickets] })),
-}), { name: "cineverse" }));
+}), { name: "pickmyseat" }));

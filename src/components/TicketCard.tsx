@@ -12,7 +12,7 @@ export default function TicketCard({ ticket, link = false }: { ticket: Ticket; l
   const movie = getMovie(b.movieId)!;
   const theatre = findTheatre(b.theatreId);
   useEffect(() => {
-    QRCode.toDataURL(`CINEVERSE|${ticket.id}|${b.seats.join(",")}`, { margin: 1, width: 220 }).then(setQr);
+    QRCode.toDataURL(`PICKMYSEAT|${ticket.id}|${b.seats.join(",")}`, { margin: 1, width: 220 }).then(setQr);
   }, [ticket.id, b.seats]);
 
   const body = (

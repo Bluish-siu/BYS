@@ -1,4 +1,4 @@
-# Cineverse
+# PickMySeat
 
 A movie ticket booking demo with a 3D cinema hall you can walk around in.
 
