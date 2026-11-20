@@ -1,47 +1,87 @@
 # PickMySeat
 
-A movie ticket booking demo with a 3D cinema hall you can walk around in.
+Movie ticket booking where you choose a seat by seeing the real view from it. Pick seats on a flat 2D map, then the camera flies into a 3D model of the theatre and sits you in that seat, with the trailer playing on the screen.
 
-## Features
+Live demo: https://bys-sooty.vercel.app
 
-- **3D panorama hero:** a ring of movie screens you can drag, spin and tap to book.
-- **Movie pages:** key art header, a 5-day picker and theatres with showtimes per city.
-- **3D seat picker:**
-  - Each theatre has its own layout (sections, prices, aisles, recliners, sofas, loungers), modelled on Mumbai multiplexes.
-  - Tap a seat and the camera moves to it so you see your view of the screen.
-  - Drag to look around 360°, walk with WASD, arrow keys or the on-screen buttons.
-  - Camera views: Overview, From stage, Back row, Bird's eye and an auto tour.
-  - "Best seats" picks the best free seats together without crossing an aisle.
-- **Booking flow:** seats, snacks, review, demo payment, then a QR ticket saved under "My tickets".
+## Project structure
 
-All movie, theatre and showtime data is dummy data. Payment is a demo: nothing is charged.
+```
+PICKMYSEAT/
+├── frontend/              Next.js website and installable app (PWA)
+│   ├── src/app/           Pages: home, movies, movie, seats, snacks, pay, ticket, my tickets
+│   ├── src/components/    3D hero, 3D hall, seat camera, 2D seat map, posters, ticket card
+│   ├── src/lib/           Movie/theatre data, seat layouts, showtimes, pricing, store, API client
+│   └── public/            Posters, app icon, web manifest
+├── backend/               Node.js REST API (no npm dependencies)
+│   ├── src/server.js      Starts the server
+│   ├── src/app.js         Routes and booking logic
+│   ├── src/db.js          Opens SQLite, creates it from the schema and seed on first run
+│   └── test/              API tests
+├── database/              SQLite database
+│   ├── schema.sql         Tables: movies, cities, theatres, snacks, bookings, booked_seats
+│   ├── seed.sql           Catalogue data (generated)
+│   └── generate-seed.mjs  Rebuilds seed.sql from frontend/src/lib/data.ts
+└── docs/                  Project synopsis (PDF)
+```
+
+## Requirements
+
+- Node.js 22.18 or newer (the backend uses Node's built-in SQLite)
 
 ## Run it
 
-```bash
-npm install
-npm run dev
-```
+1. Install the frontend packages (once):
 
-Then open http://localhost:3000.
+   ```bash
+   npm run setup
+   ```
 
-## Turning it into a mobile app
+2. Start the backend (terminal 1). It creates `database/pickmyseat.db` on first run.
 
-The site is already installable as a PWA (`public/manifest.webmanifest`, `public/icon.svg`). Safe-area insets are handled, so it works under a notch.
+   ```bash
+   npm run dev:backend
+   ```
 
-- **Fastest:** deploy to Vercel and use "Add to Home Screen" on a phone.
-- **Store apps:** wrap the deployed site with [Capacitor](https://capacitorjs.com) (`server.url` pointing at the Vercel URL) to ship iOS and Android builds.
-- **Later:** swap the dummy data in `src/lib/data.ts` and the persisted store in `src/lib/store.ts` for a real API. UI, 3D hall and pricing logic need no changes.
+3. Connect the frontend to the backend: copy `frontend/.env.example` to `frontend/.env.local`.
 
-## Built with
+4. Start the frontend (terminal 2), then open http://localhost:3000.
 
-Next.js 14, React 18, TypeScript, Three.js with React Three Fiber, Tailwind CSS, Zustand and qrcode.
+   ```bash
+   npm run dev:frontend
+   ```
 
-## Project layout
+Skip steps 2 and 3 to run the website on its own in demo mode. Tickets are then kept only in the browser.
 
-- `src/app` pages: home, movies, movie, booking steps (seats, snacks, pay), tickets
-- `src/components` 3D hero, seat hall, hall model, posters, ticket card
-- `src/lib` movie and theatre data, seat layouts, showtimes, pricing, store
-- `public/posters` movie key art
+## API
 
-Movie posters belong to their respective owners and are used here for demo purposes only.
+Base URL: `http://localhost:4000/api`
+
+| Method | Path | What it does |
+| --- | --- | --- |
+| GET | `/health` | Server check |
+| GET | `/movies` | All movies |
+| GET | `/movies/:id` | One movie |
+| GET | `/cities` | City names |
+| GET | `/theatres?city=Mumbai` | Theatres in a city, nearest first |
+| GET | `/snacks` | Snack menu |
+| GET | `/shows/:showKey/booked-seats` | Seats already bought for a show (`showKey` = `movieId\|showId\|day`) |
+| POST | `/bookings` | Books seats; returns `409` with the taken seats if someone got there first |
+| GET | `/bookings/:id` | One booking (the ticket id) |
+
+Seats are reserved in one database transaction, and `booked_seats` has a primary key on (show, seat), so the same seat can never be sold twice.
+
+## Useful commands
+
+| Command | What it does |
+| --- | --- |
+| `npm test` | Runs the API tests |
+| `npm run build` | Production build of the frontend |
+| `npm run db:seed` | Regenerates `database/seed.sql` after editing movies or theatres |
+| `npm run db:reset` | Deletes the database and rebuilds it from the seed |
+
+## Notes
+
+- Payment is a demo. Nothing is charged and no card details are collected.
+- Showtimes and the "already sold" seats are generated so every show looks busy. Real purchases from the backend are added on top.
+- Movie posters and trailers belong to their owners and are used for demo purposes only.

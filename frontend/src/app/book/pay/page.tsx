@@ -3,6 +3,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getMovie, movies, snacks, findTheatre } from "@/lib/data";
 import { useStore } from "@/lib/store";
+import { apiEnabled, createBooking } from "@/lib/api";
 import { FEE, dayLabel, grandTotal, seatsTotal, useHydrated } from "@/lib/pricing";
 
 export default function PayPage() {
@@ -11,6 +12,7 @@ export default function PayPage() {
   const { booking, setBooking, addTicket } = useStore();
   const [method, setMethod] = useState("upi");
   const [paying, setPaying] = useState(false);
+  const [error, setError] = useState("");
   useEffect(() => { if (ready && !paying && (!booking || !booking.seats.length)) router.replace("/"); }, [ready, paying, booking, router]);
   if (!ready || !booking) return <p className="p-10 text-white/60">Loading...</p>;
 
@@ -18,15 +20,22 @@ export default function PayPage() {
   const theatre = findTheatre(booking.theatreId);
   const total = grandTotal(booking);
 
-  const pay = () => {
+  const issue = (id: string) => {
+    addTicket({ id, booking, total, at: Date.now() });
+    setBooking(null);
+    router.replace(`/ticket/${id}`);
+  };
+
+  const pay = async () => {
     setPaying(true);
-    // Demo payment: no real charge, just a short delay before issuing the ticket.
-    setTimeout(() => {
-      const id = "CV" + Math.random().toString(36).slice(2, 8).toUpperCase();
-      addTicket({ id, booking, total, at: Date.now() });
-      setBooking(null);
-      router.replace(`/ticket/${id}`);
-    }, 1200);
+    setError("");
+    // Demo payment: no real charge. With a backend, the server reserves the seats and issues the ticket id.
+    await new Promise((r) => setTimeout(r, 800));
+    if (!apiEnabled) return issue("PMS" + Math.random().toString(36).slice(2, 10).toUpperCase());
+    const res = await createBooking(booking, total);
+    if (res.ok) return issue(res.id);
+    setPaying(false);
+    setError(res.taken?.length ? `Seat ${res.taken.join(", ")} was just booked by someone else. Please pick another seat.` : res.error);
   };
 
   return (
@@ -52,6 +61,11 @@ export default function PayPage() {
         ))}
       </div>
       <p className="mt-2 text-xs text-white/40">Demo only. No real payment is taken and no details are collected.</p>
+      {error && (
+        <div className="mt-4 rounded-xl border border-brand/40 bg-brand/10 p-3 text-sm">
+          {error} <button className="ml-1 font-semibold underline" onClick={() => router.push("/book/seats")}>Change seats</button>
+        </div>
+      )}
 
       <div className="mt-6 flex gap-2">
         <button className="btn btn-ghost" onClick={() => router.push("/book/snacks")}>Back</button>

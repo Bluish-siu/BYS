@@ -1,27 +1,15 @@
 {
   "name": "pickmyseat",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
-  "scripts": { "dev": "next dev -p 3000", "build": "next build", "start": "next start" },
-  "dependencies": {
-    "@react-three/drei": "9.109.2",
-    "@react-three/fiber": "8.16.8",
-    "next": "14.2.15",
-    "qrcode": "1.5.4",
-    "react": "18.3.1",
-    "react-dom": "18.3.1",
-    "three": "0.167.1",
-    "zustand": "4.5.5"
-  },
-  "devDependencies": {
-    "@types/node": "20.14.0",
-    "@types/qrcode": "1.5.5",
-    "@types/react": "18.3.3",
-    "@types/react-dom": "18.3.0",
-    "@types/three": "0.167.2",
-    "autoprefixer": "10.4.20",
-    "postcss": "8.4.47",
-    "tailwindcss": "3.4.13",
-    "typescript": "5.5.4"
+  "description": "PickMySeat: movie ticket booking with a walkable 3D cinema. Frontend (Next.js), backend (Node API) and database (SQLite).",
+  "scripts": {
+    "setup": "npm install --prefix frontend",
+    "dev:frontend": "npm run dev --prefix frontend",
+    "dev:backend": "npm run dev --prefix backend",
+    "build": "npm run build --prefix frontend",
+    "test": "npm test --prefix backend",
+    "db:seed": "node database/generate-seed.mjs",
+    "db:reset": "npm run db:reset --prefix backend"
   }
 }

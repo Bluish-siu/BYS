@@ -6,6 +6,7 @@ import { findTheatre, getMovie } from "@/lib/data";
 import { KIND_COLOR, Layout } from "@/lib/layouts";
 import { getShows, soldSeatsFor } from "@/lib/shows";
 import { useStore } from "@/lib/store";
+import { fetchBookedSeats, showKeyOf } from "@/lib/api";
 import { dayLabel, layoutFor, seatsTotal, useHydrated } from "@/lib/pricing";
 import { newInput, type CamMode } from "@/components/SeatHall";
 import SeatMap from "@/components/SeatMap";
@@ -73,7 +74,29 @@ export default function SeatsPage() {
   }, [tour]);
 
   const layout = useMemo(() => (booking ? layoutFor(booking) : null), [booking?.theatreId]); // eslint-disable-line react-hooks/exhaustive-deps
-  const sold = useMemo(() => (booking && layout ? soldSeatsFor(`${booking.movieId}|${booking.showId}|${booking.day}`, booking.fill, layout.seatIds) : new Set<string>()), [booking?.movieId, booking?.showId, booking?.day, layout]); // eslint-disable-line react-hooks/exhaustive-deps
+  const showKey = booking ? showKeyOf(booking) : "";
+  // Seats bought by other customers, from the backend (empty in demo mode).
+  const [booked, setBooked] = useState<string[]>([]);
+  useEffect(() => {
+    if (!showKey) return;
+    let live = true;
+    setBooked([]);
+    fetchBookedSeats(showKey).then((s) => { if (live) setBooked(s); });
+    return () => { live = false; };
+  }, [showKey]);
+  // Drop any picked seat that another customer has bought meanwhile.
+  useEffect(() => {
+    if (!booking || !booked.length) return;
+    const keep = booking.seats.filter((s) => !booked.includes(s));
+    if (keep.length === booking.seats.length) return;
+    patch({ seats: keep });
+    setMsg("Some seats you picked were just booked by someone else. Please choose again.");
+  }, [booked]); // eslint-disable-line react-hooks/exhaustive-deps
+  const sold = useMemo(() => {
+    const s = booking && layout ? soldSeatsFor(showKey, booking.fill, layout.seatIds) : new Set<string>();
+    for (const id of booked) s.add(id);
+    return s;
+  }, [showKey, booked, layout]); // eslint-disable-line react-hooks/exhaustive-deps
   const best = useMemo(() => (layout ? bestsellers(layout) : new Set<string>()), [layout]);
   const movie = booking ? getMovie(booking.movieId) : undefined;
   if (!ready || !booking || !movie || !layout) return <p className="p-10 text-white/60">Loading...</p>;

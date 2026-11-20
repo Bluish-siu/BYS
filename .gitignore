@@ -1,8 +1,13 @@
 node_modules/
 .next/
 out/
-next-env.d.ts
 *.tsbuildinfo
-.env*
+.env
+.env.local
 .DS_Store
 npm-debug.log*
+
+# SQLite database files are created on first run from database/schema.sql + seed.sql
+database/*.db
+database/*.db-wal
+database/*.db-shm
