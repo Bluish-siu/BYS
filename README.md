@@ -22,7 +22,7 @@ PICKMYSEAT/
 │   ├── schema.sql         Tables: movies, cities, theatres, snacks, bookings, booked_seats
 │   ├── seed.sql           Catalogue data (generated)
 │   └── generate-seed.mjs  Rebuilds seed.sql from frontend/src/lib/data.ts
-└── docs/                  Project synopsis (PDF)
+└── docs/                  Project synopsis (PDF) and its generator, logo files (brand/)
 ```
 
 ## Requirements
