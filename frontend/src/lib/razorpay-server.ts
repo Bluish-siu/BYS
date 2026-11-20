@@ -5,10 +5,24 @@ import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 export const HOLD_MINUTES = 10;
 
+// Values pasted into a dashboard sometimes keep quote marks or spaces: strip them.
+const clean = (v?: string) => v?.trim().replace(/^["']|["']$/g, "").trim() || undefined;
+
+/** Why payments are off, without revealing any key. Null when everything is set up. */
+export function keyProblem(): string | null {
+  const keyId = clean(process.env.RAZORPAY_KEY_ID);
+  const secret = clean(process.env.RAZORPAY_KEY_SECRET);
+  if (!keyId && !secret) return "RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET are not set for this deployment";
+  if (!keyId) return "RAZORPAY_KEY_ID is not set for this deployment";
+  if (!secret) return "RAZORPAY_KEY_SECRET is not set for this deployment";
+  if (!keyId.startsWith("rzp_test_")) return "RAZORPAY_KEY_ID is not a test key (it must start with rzp_test_)";
+  return null;
+}
+
 export function razorpayKeys() {
-  const keyId = process.env.RAZORPAY_KEY_ID?.trim();
-  const secret = process.env.RAZORPAY_KEY_SECRET?.trim();
-  if (!keyId || !secret || !keyId.startsWith("rzp_test_")) return null;
+  if (keyProblem()) return null;
+  const keyId = clean(process.env.RAZORPAY_KEY_ID)!;
+  const secret = clean(process.env.RAZORPAY_KEY_SECRET)!;
   return { keyId, secret, auth: "Basic " + Buffer.from(`${keyId}:${secret}`).toString("base64") };
 }
 
