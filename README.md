@@ -69,6 +69,8 @@ How a payment works:
 3. **Verify.** Razorpay returns a signed result. The backend checks the HMAC-SHA256 signature with the secret key and only then confirms the booking.
 4. **Cancel or expire.** Closing the window, or 10 minutes passing without payment, releases the seats.
 
+**On Vercel (no separate backend):** the website has its own payment routes in `frontend/src/app/api/payments/`. Add `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` (test keys) under Vercel → Project → Settings → Environment Variables, then redeploy. Payments are created and signature-checked the same way, but seats are not held in a database there. Seat locking needs the full backend.
+
 Test payment details (from Razorpay's test documentation):
 
 | Method | Use |

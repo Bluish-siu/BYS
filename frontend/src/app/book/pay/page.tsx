@@ -20,12 +20,11 @@ export default function PayPage() {
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState("");
   const [config, setConfig] = useState<PaymentConfig | null>(null);
-  const [checked, setChecked] = useState(!apiEnabled);
+  const [checked, setChecked] = useState(false);
   const done = useRef(false);
 
   useEffect(() => { if (ready && !paying && !done.current && (!booking || !booking.seats.length)) router.replace("/"); }, [ready, paying, booking, router]);
   useEffect(() => {
-    if (!apiEnabled) return;
     fetchPaymentConfig().then((c) => { setConfig(c); setChecked(true); if (c?.razorpay) loadRazorpay(); });
   }, []);
   if (!ready || !booking) return <p className="p-10 text-fg/60">Loading...</p>;

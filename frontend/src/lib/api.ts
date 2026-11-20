@@ -4,6 +4,8 @@ import type { Booking } from "./store";
 
 const API = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
 export const apiEnabled = Boolean(API);
+// Payments use the separate backend when it is set, otherwise the website's own /api routes (as on Vercel).
+const PAY_API = API ?? "/api";
 
 export const showKeyOf = (b: Pick<Booking, "movieId" | "showId" | "day">) => `${b.movieId}|${b.showId}|${b.day}`;
 
@@ -41,9 +43,8 @@ export async function createBooking(b: Booking, total: number): Promise<CreateRe
 export type PaymentConfig = { razorpay: boolean; keyId: string | null; mode: "test" | "off" };
 
 export async function fetchPaymentConfig(): Promise<PaymentConfig | null> {
-  if (!API) return null;
   try {
-    const r = await fetch(`${API}/payments/config`, { cache: "no-store" });
+    const r = await fetch(`${PAY_API}/payments/config`, { cache: "no-store" });
     return r.ok ? await r.json() : null;
   } catch {
     return null;
@@ -53,7 +54,7 @@ export async function fetchPaymentConfig(): Promise<PaymentConfig | null> {
 export type PaymentOrder = { bookingId: string; orderId: string; amount: number; currency: string; keyId: string; holdMinutes: number };
 
 const post = async (path: string, body: unknown) => {
-  const r = await fetch(`${API}${path}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const r = await fetch(`${PAY_API}${path}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   return { ok: r.ok, data: await r.json().catch(() => ({})) };
 };
 
