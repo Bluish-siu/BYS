@@ -13,6 +13,11 @@ export function openDb(file = process.env.DB_PATH ?? "../database/pickmyseat.db"
   const db = new DatabaseSync(dbPath);
   db.exec("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;");
   db.exec(readFileSync(path.join(databaseDir, "schema.sql"), "utf8"));
+  // Databases created before payments existed: add the new booking columns.
+  const cols = new Set(db.prepare("PRAGMA table_info(bookings)").all().map((c) => c.name));
+  for (const [name, type] of [["expires_at", "TEXT"], ["payment_order_id", "TEXT"], ["payment_id", "TEXT"]])
+    if (!cols.has(name)) db.exec(`ALTER TABLE bookings ADD COLUMN ${name} ${type}`);
+  db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_bookings_order ON bookings(payment_order_id)");
   const { n } = db.prepare("SELECT COUNT(*) AS n FROM movies").get();
   if (n === 0) db.exec(readFileSync(path.join(databaseDir, "seed.sql"), "utf8"));
   return db;

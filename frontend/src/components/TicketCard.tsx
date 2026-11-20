@@ -24,6 +24,7 @@ export default function TicketCard({ ticket, link = false }: { ticket: Ticket; l
         <p className="text-sm text-white/70">{dayLabel(b.day)} · {b.time}</p>
         <p className="mt-3 text-sm">Seats: <b>{b.seats.join(", ")}</b></p>
         <p className="mt-1 text-xs text-white/50">Booking ID {ticket.id} · ₹{ticket.total}</p>
+        {ticket.paymentId && <p className="text-xs text-white/50">Paid via Razorpay (test) · {ticket.paymentId}</p>}
       </div>
       <div className="grid w-40 place-items-center bg-white p-2">
         {qr ? <img src={qr} alt={`QR for ${ticket.id}`} className="w-full" /> : null}

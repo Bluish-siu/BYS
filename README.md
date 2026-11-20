@@ -53,6 +53,30 @@ PICKMYSEAT/
 
 Skip steps 2 and 3 to run the website on its own in demo mode. Tickets are then kept only in the browser.
 
+## Razorpay payments (test mode)
+
+With Razorpay keys in the backend, the Pay button opens the real Razorpay Checkout window (UPI, cards, netbanking, wallets). Test mode never moves real money.
+
+1. Create a free account at https://dashboard.razorpay.com and switch to **Test Mode**.
+2. Go to **Account & Settings → API Keys** and generate a test key.
+3. Copy `backend/.env.example` to `backend/.env` and fill in `RAZORPAY_KEY_ID` (starts with `rzp_test_`) and `RAZORPAY_KEY_SECRET`. Only test keys are accepted.
+4. Restart the backend. It prints `Razorpay test mode on`.
+
+How a payment works:
+
+1. **Order.** The backend holds the seats for 10 minutes and creates a Razorpay order for the total (in paise).
+2. **Checkout.** The browser opens Razorpay with that order. Card and UPI details go only to Razorpay.
+3. **Verify.** Razorpay returns a signed result. The backend checks the HMAC-SHA256 signature with the secret key and only then confirms the booking.
+4. **Cancel or expire.** Closing the window, or 10 minutes passing without payment, releases the seats.
+
+Test payment details (from Razorpay's test documentation):
+
+| Method | Use |
+| --- | --- |
+| UPI | `success@razorpay` (or `failure@razorpay` to see a failed payment) |
+| Card | `4111 1111 1111 1111`, any future expiry, any CVV, any OTP |
+| Netbanking | Any bank, then **Success** on Razorpay's test page |
+
 ## API
 
 Base URL: `http://localhost:4000/api`
@@ -66,8 +90,12 @@ Base URL: `http://localhost:4000/api`
 | GET | `/theatres?city=Mumbai` | Theatres in a city, nearest first |
 | GET | `/snacks` | Snack menu |
 | GET | `/shows/:showKey/booked-seats` | Seats already bought for a show (`showKey` = `movieId\|showId\|day`) |
-| POST | `/bookings` | Books seats; returns `409` with the taken seats if someone got there first |
+| POST | `/bookings` | Books seats without payment (only when Razorpay is off); `409` lists seats someone else got first |
 | GET | `/bookings/:id` | One booking (the ticket id) |
+| GET | `/payments/config` | Whether Razorpay test mode is on, and the public key id |
+| POST | `/payments/order` | Holds the seats and creates a Razorpay order |
+| POST | `/payments/verify` | Checks Razorpay's signature and confirms the booking |
+| POST | `/payments/cancel` | Releases the seats when the payment window is closed |
 
 Seats are reserved in one database transaction, and `booked_seats` has a primary key on (show, seat), so the same seat can never be sold twice.
 
@@ -82,6 +110,7 @@ Seats are reserved in one database transaction, and `booked_seats` has a primary
 
 ## Notes
 
-- Payment is a demo. Nothing is charged and no card details are collected.
+- Payments run only in Razorpay test mode. Without keys, payment is a demo screen. Nothing is ever charged.
+- The amount comes from the browser's price calculation. A production system should recalculate it on the server before creating the order.
 - Showtimes and the "already sold" seats are generated so every show looks busy. Real purchases from the backend are added on top.
 - Movie posters and trailers belong to their owners and are used for demo purposes only.

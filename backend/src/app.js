@@ -2,8 +2,9 @@
 import { randomBytes } from "node:crypto";
 
 const MAX_SEATS = 10;
+const HOLD_MINUTES = 10; // how long seats are held while the customer pays
 
-export function createApp(db, { corsOrigin = "*" } = {}) {
+export function createApp(db, { corsOrigin = "*", razorpay = null } = {}) {
   const q = {
     movies: db.prepare("SELECT * FROM movies ORDER BY rowid"),
     movie: db.prepare("SELECT * FROM movies WHERE id = ?"),
@@ -13,33 +14,45 @@ export function createApp(db, { corsOrigin = "*" } = {}) {
     snacks: db.prepare("SELECT * FROM snacks ORDER BY rowid"),
     booked: db.prepare("SELECT seat_id FROM booked_seats WHERE show_key = ?"),
     taken: db.prepare("SELECT seat_id FROM booked_seats WHERE show_key = ? AND seat_id = ?"),
-    insertBooking: db.prepare(`INSERT INTO bookings (id, movie_id, theatre_id, city, day, show_id, show_key, show_time, format, seats, snacks, total)
-                               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`),
+    insertBooking: db.prepare(`INSERT INTO bookings (id, movie_id, theatre_id, city, day, show_id, show_key, show_time, format, seats, snacks, total, status, expires_at)
+                               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`),
     insertSeat: db.prepare("INSERT INTO booked_seats (show_key, seat_id, booking_id) VALUES (?, ?, ?)"),
     booking: db.prepare("SELECT * FROM bookings WHERE id = ?"),
+    byOrder: db.prepare("SELECT * FROM bookings WHERE payment_order_id = ?"),
+    setOrder: db.prepare("UPDATE bookings SET payment_order_id = ? WHERE id = ?"),
+    confirm: db.prepare("UPDATE bookings SET status = 'confirmed', payment_id = ?, expires_at = NULL WHERE id = ? AND status = 'pending'"),
+    remove: db.prepare("DELETE FROM bookings WHERE id = ?"),
+    expire: db.prepare("DELETE FROM bookings WHERE status = 'pending' AND expires_at < datetime('now')"),
   };
 
   const theatreOut = (t) => ({ ...t, formats: t.formats.split(",") });
   const bookingOut = (b) => ({ ...b, seats: JSON.parse(b.seats), snacks: JSON.parse(b.snacks) });
 
-  function createBooking(body) {
-    const { movieId, theatreId, city, day, showId, time, format, seats, snacks = {}, total } = body ?? {};
-    if (!q.movie.get(movieId ?? "")) return [400, { error: "Unknown movie" }];
-    if (!q.theatre.get(theatreId ?? "")) return [400, { error: "Unknown theatre" }];
+  function validate(body) {
+    const { movieId, theatreId, day, showId, seats, total } = body ?? {};
+    if (!q.movie.get(movieId ?? "")) return "Unknown movie";
+    if (!q.theatre.get(theatreId ?? "")) return "Unknown theatre";
     if (!Array.isArray(seats) || seats.length < 1 || seats.length > MAX_SEATS || !seats.every((s) => typeof s === "string" && /^[A-Z]{1,2}\d{1,3}$/.test(s)))
-      return [400, { error: `Choose between 1 and ${MAX_SEATS} valid seats` }];
-    if (new Set(seats).size !== seats.length) return [400, { error: "Duplicate seats" }];
-    if (!Number.isInteger(day) || day < 0 || day > 6 || typeof showId !== "string" || !showId) return [400, { error: "Invalid show" }];
-    if (!Number.isInteger(total) || total <= 0) return [400, { error: "Invalid total" }];
+      return `Choose between 1 and ${MAX_SEATS} valid seats`;
+    if (new Set(seats).size !== seats.length) return "Duplicate seats";
+    if (!Number.isInteger(day) || day < 0 || day > 6 || typeof showId !== "string" || !showId) return "Invalid show";
+    if (!Number.isInteger(total) || total <= 0 || total > 500_000) return "Invalid total";
+    return null;
+  }
 
+  /** Reserves the seats in one transaction. status "pending" holds them for HOLD_MINUTES. */
+  function reserve(body, status) {
+    const err = validate(body);
+    if (err) return [400, { error: err }];
+    const { movieId, theatreId, city, day, showId, time, format, seats, snacks = {}, total } = body;
     const showKey = `${movieId}|${showId}|${day}`;
     const id = "PMS" + randomBytes(4).toString("hex").toUpperCase();
-    // One transaction: either every seat is reserved, or none are.
+    const expires = status === "pending" ? new Date(Date.now() + HOLD_MINUTES * 60_000).toISOString().replace("T", " ").slice(0, 19) : null;
     db.exec("BEGIN IMMEDIATE");
     try {
       const clash = seats.filter((s) => q.taken.get(showKey, s));
       if (clash.length) { db.exec("ROLLBACK"); return [409, { error: "Some seats were just booked by someone else", taken: clash }]; }
-      q.insertBooking.run(id, movieId, theatreId, String(city ?? ""), day, showId, showKey, String(time ?? ""), String(format ?? ""), JSON.stringify(seats), JSON.stringify(snacks), total);
+      q.insertBooking.run(id, movieId, theatreId, String(city ?? ""), day, showId, showKey, String(time ?? ""), String(format ?? ""), JSON.stringify(seats), JSON.stringify(snacks), total, status, expires);
       for (const s of seats) q.insertSeat.run(showKey, s, id);
       db.exec("COMMIT");
     } catch (e) {
@@ -49,7 +62,46 @@ export function createApp(db, { corsOrigin = "*" } = {}) {
     return [201, bookingOut(q.booking.get(id))];
   }
 
+  // Step 1 of a payment: hold the seats and open a Razorpay order for the amount.
+  async function createOrder(body) {
+    const [status, booking] = reserve(body, "pending");
+    if (status !== 201) return [status, booking];
+    try {
+      const order = await razorpay.createOrder({
+        amount: booking.total * 100, // paise
+        receipt: booking.id,
+        notes: { booking: booking.id, movie: booking.movie_id, seats: booking.seats.join(" ") },
+      });
+      q.setOrder.run(order.id, booking.id);
+      return [201, { bookingId: booking.id, orderId: order.id, amount: order.amount, currency: order.currency, keyId: razorpay.keyId, holdMinutes: HOLD_MINUTES }];
+    } catch (e) {
+      q.remove.run(booking.id); // release the seats again
+      console.error("Razorpay order failed:", e.message);
+      return [502, { error: "Couldn't start the payment. Please try again." }];
+    }
+  }
+
+  // Step 2: Razorpay calls the browser back; the browser sends the signed result here.
+  function verifyPayment(body) {
+    const { razorpay_order_id: orderId, razorpay_payment_id: paymentId, razorpay_signature: signature } = body ?? {};
+    if (!orderId || !paymentId || !signature) return [400, { error: "Missing payment details" }];
+    if (!razorpay.verify(orderId, paymentId, signature)) return [400, { error: "Payment could not be verified" }];
+    const b = q.byOrder.get(orderId);
+    if (!b) return [410, { error: "Your seat hold expired before the payment finished. Any amount debited will be refunded." }];
+    if (b.status === "confirmed") return [200, bookingOut(b)]; // same callback twice
+    q.confirm.run(paymentId, b.id);
+    return [200, bookingOut(q.booking.get(b.id))];
+  }
+
+  // The customer closed the payment window: release the held seats.
+  function cancelPayment(body) {
+    const b = q.byOrder.get(String(body?.orderId ?? ""));
+    if (b?.status === "pending") q.remove.run(b.id);
+    return [200, { released: Boolean(b && b.status === "pending") }];
+  }
+
   async function route(method, url, body) {
+    q.expire.run(); // drop seat holds whose payment window has passed
     const parts = url.pathname.split("/").filter(Boolean).map(decodeURIComponent); // ["api", ...]
     if (parts[0] !== "api") return [404, { error: "Not found" }];
     const [, res, id, sub] = parts;
@@ -63,8 +115,20 @@ export function createApp(db, { corsOrigin = "*" } = {}) {
       if (res === "snacks") return [200, q.snacks.all()];
       if (res === "shows" && id && sub === "booked-seats") return [200, { showKey: id, seats: q.booked.all(id).map((r) => r.seat_id) }];
       if (res === "bookings" && id) { const b = q.booking.get(id); return b ? [200, bookingOut(b)] : [404, { error: "Booking not found" }]; }
+      if (res === "payments" && id === "config") return [200, { razorpay: Boolean(razorpay), keyId: razorpay?.keyId ?? null, mode: razorpay ? "test" : "off" }];
     }
-    if (method === "POST" && res === "bookings" && !id) return createBooking(body);
+    if (method === "POST") {
+      if (res === "bookings" && !id) {
+        // With Razorpay on, tickets are only issued after a verified payment.
+        if (razorpay) return [403, { error: "Payment required. Use /api/payments/order." }];
+        return reserve(body, "confirmed");
+      }
+      if (res === "payments" && razorpay) {
+        if (id === "order") return createOrder(body);
+        if (id === "verify") return verifyPayment(body);
+        if (id === "cancel") return cancelPayment(body);
+      }
+    }
     return [404, { error: "Not found" }];
   }
 

@@ -6,7 +6,7 @@ export type Booking = {
   movieId: string; city: string; day: number; theatreId: string; showId: string; time: string; format: string;
   fill: number; seats: string[]; snacks: Record<string, number>;
 };
-export type Ticket = { id: string; booking: Booking; total: number; at: number };
+export type Ticket = { id: string; booking: Booking; total: number; at: number; paymentId?: string };
 
 type State = {
   city: string; setCity: (c: string) => void;

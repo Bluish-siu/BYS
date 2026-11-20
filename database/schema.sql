@@ -50,7 +50,10 @@ CREATE TABLE IF NOT EXISTS bookings (
   seats       TEXT NOT NULL,                   -- JSON array of seat ids
   snacks      TEXT NOT NULL DEFAULT '{}',      -- JSON object snackId -> quantity
   total       INTEGER NOT NULL,                -- rupees, including fee
-  status      TEXT NOT NULL DEFAULT 'confirmed',
+  status      TEXT NOT NULL DEFAULT 'confirmed', -- 'pending' while paying, then 'confirmed'
+  expires_at  TEXT,                            -- end of the seat hold for a pending booking (UTC)
+  payment_order_id TEXT UNIQUE,                -- Razorpay order id (order_...)
+  payment_id  TEXT,                            -- Razorpay payment id (pay_...)
   created_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
 

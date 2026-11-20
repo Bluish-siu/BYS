@@ -35,3 +35,66 @@ export async function createBooking(b: Booking, total: number): Promise<CreateRe
     return { ok: false, error: "Can't reach the booking server. Please try again." };
   }
 }
+
+// ---------- Razorpay (test mode) ----------
+
+export type PaymentConfig = { razorpay: boolean; keyId: string | null; mode: "test" | "off" };
+
+export async function fetchPaymentConfig(): Promise<PaymentConfig | null> {
+  if (!API) return null;
+  try {
+    const r = await fetch(`${API}/payments/config`, { cache: "no-store" });
+    return r.ok ? await r.json() : null;
+  } catch {
+    return null;
+  }
+}
+
+export type PaymentOrder = { bookingId: string; orderId: string; amount: number; currency: string; keyId: string; holdMinutes: number };
+
+const post = async (path: string, body: unknown) => {
+  const r = await fetch(`${API}${path}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  return { ok: r.ok, data: await r.json().catch(() => ({})) };
+};
+
+/** Holds the seats on the server and opens a Razorpay order for the total. */
+export async function createPaymentOrder(b: Booking, total: number): Promise<{ ok: true; order: PaymentOrder } | { ok: false; error: string; taken?: string[] }> {
+  try {
+    const { ok, data } = await post("/payments/order", { movieId: b.movieId, theatreId: b.theatreId, city: b.city, day: b.day, showId: b.showId, time: b.time, format: b.format, seats: b.seats, snacks: b.snacks, total });
+    return ok ? { ok: true, order: data } : { ok: false, error: data.error ?? "Couldn't start the payment", taken: data.taken };
+  } catch {
+    return { ok: false, error: "Can't reach the booking server. Please try again." };
+  }
+}
+
+export type RazorpayResult = { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string };
+
+/** Sends Razorpay's signed result to the server, which confirms the booking only if the signature is genuine. */
+export async function verifyPayment(res: RazorpayResult): Promise<{ ok: true; id: string; paymentId: string } | { ok: false; error: string }> {
+  try {
+    const { ok, data } = await post("/payments/verify", res);
+    return ok ? { ok: true, id: data.id, paymentId: data.payment_id } : { ok: false, error: data.error ?? "Payment could not be verified" };
+  } catch {
+    return { ok: false, error: "Payment received, but we couldn't confirm it. Please check My tickets in a minute." };
+  }
+}
+
+/** Releases the held seats when the customer closes the payment window. */
+export async function cancelPayment(orderId: string) {
+  try { await post("/payments/cancel", { orderId }); } catch { /* the hold expires on its own */ }
+}
+
+let checkoutScript: Promise<boolean> | null = null;
+/** Loads Razorpay's official checkout script once. */
+export function loadRazorpay(): Promise<boolean> {
+  if (typeof window === "undefined") return Promise.resolve(false);
+  if ((window as unknown as { Razorpay?: unknown }).Razorpay) return Promise.resolve(true);
+  checkoutScript ??= new Promise((resolve) => {
+    const s = document.createElement("script");
+    s.src = "https://checkout.razorpay.com/v1/checkout.js";
+    s.onload = () => resolve(true);
+    s.onerror = () => { checkoutScript = null; resolve(false); };
+    document.body.appendChild(s);
+  });
+  return checkoutScript;
+}
