@@ -19,7 +19,7 @@ export const movies: Movie[] = [
 export const getMovie = (id: string) => movies.find((m) => m.id === id);
 
 export const posterGradient = (m: Movie) =>
-  `linear-gradient(155deg, hsl(${m.hue} 85% 55%), hsl(${m.hue2} 80% 22%) 70%, #07070c)`;
+  `linear-gradient(155deg, hsl(${m.hue} 85% 55%), hsl(${m.hue2} 80% 22%) 70%, #16161A)`;
 
 export type Theatre = { id: string; name: string; km: number; formats: string[]; layout: string };
 

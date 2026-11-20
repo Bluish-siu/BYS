@@ -204,7 +204,7 @@ export default function Hero() {
   const m = featured[front];
   return (
     <section
-      className="relative h-[calc(100svh-57px)] min-h-[560px] w-full select-none overflow-hidden"
+      className="on-dark relative h-[calc(100svh-57px)] min-h-[560px] w-full select-none overflow-hidden bg-ink text-white"
       style={{ background: `radial-gradient(ellipse at 50% 35%, hsl(${m.hue} 70% 22%), #05050a 70%)`, transition: "background 1s" }}
     >
       <Canvas camera={{ position: [0, 0, 0.01], fov: 76, near: 0.1, far: 200 }} dpr={low ? [1, 1.25] : [1, 1.75]} style={{ touchAction: "pan-y" }}>
@@ -228,7 +228,7 @@ export default function Hero() {
           <h1 className="mt-1 text-5xl font-black leading-none tracking-tight text-white [text-shadow:0_6px_40px_rgba(0,0,0,0.9)] sm:text-6xl md:text-7xl">{m.title}</h1>
           <p className="mx-auto mt-2 hidden max-w-xl text-sm text-white/70 sm:block md:text-base">{m.blurb}</p>
           <div className="pointer-events-auto mt-4 flex justify-center gap-3">
-            <Link href={`/movie/${m.id}`} className="btn btn-brand px-7 py-3 text-base shadow-[0_0_40px_rgba(255,61,90,0.55)]">Book tickets</Link>
+            <Link href={`/movie/${m.id}`} className="btn btn-brand px-7 py-3 text-base shadow-[0_0_40px_rgba(255,90,54,0.55)]">Book tickets</Link>
             <Link href="/movies" className="btn btn-ghost px-6 py-3 text-base backdrop-blur">All movies</Link>
           </div>
         </div>

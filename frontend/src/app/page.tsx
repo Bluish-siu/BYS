@@ -14,7 +14,7 @@ export default function Home() {
             <Link key={m.id} href={`/movie/${m.id}`} className="group">
               <Poster movie={m} className="transition group-hover:-translate-y-1 group-hover:shadow-2xl" />
               <p className="mt-2 text-sm font-semibold">{m.title}</p>
-              <p className="text-xs text-white/50">{m.lang} · ★ {m.rating}</p>
+              <p className="text-xs text-fg/50">{m.lang} · ★ {m.rating}</p>
             </Link>
           ))}
         </div>

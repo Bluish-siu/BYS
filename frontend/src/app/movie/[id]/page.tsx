@@ -19,8 +19,8 @@ export default function MoviePage() {
 
   return (
     <div>
-      <section className="relative flex h-[70vh] min-h-[420px] items-end overflow-hidden"
-        style={{ background: `linear-gradient(135deg, hsl(${movie.hue} 80% 40%), hsl(${movie.hue2} 75% 14%) 65%, #07070c)` }}>
+      <section className="on-dark relative flex h-[70vh] min-h-[420px] items-end overflow-hidden bg-ink text-white"
+        style={{ background: `linear-gradient(135deg, hsl(${movie.hue} 80% 40%), hsl(${movie.hue2} 75% 14%) 65%, #16161A)` }}>
         {movie.banner ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={movie.banner} alt="" className="absolute inset-0 h-full w-full object-cover" />
@@ -33,7 +33,7 @@ export default function MoviePage() {
           {/* real key art already carries the title, so keep the heading for screen readers only */}
           <h1 className={movie.banner ? "sr-only" : "mt-2 text-4xl font-black drop-shadow-lg md:text-6xl"}>{movie.title}</h1>
           <p className="mt-3 max-w-2xl text-white/80">{movie.blurb}</p>
-          <p className="mt-3 font-semibold text-gold">★ {movie.rating} / 10</p>
+          <p className="mt-3 font-semibold text-amber-300">★ {movie.rating} / 10</p>
         </div>
       </section>
 
@@ -49,7 +49,7 @@ export default function MoviePage() {
             <div key={theatre.id} className="card p-4">
               <div className="mb-3 flex items-baseline justify-between">
                 <h3 className="font-bold">{theatre.name}</h3>
-                <span className="text-xs text-white/50">{theatre.km} km away</span>
+                <span className="text-xs text-fg/50">{theatre.km} km away</span>
               </div>
               <div className="flex flex-wrap gap-2">
                 {shows.map((s) => {
@@ -57,9 +57,9 @@ export default function MoviePage() {
                   return (
                     <button key={s.id}
                       onClick={() => { setBooking({ movieId: movie.id, city: cityName, day, theatreId: theatre.id, showId: s.id, time: s.time, format: s.format, fill: s.fill, seats: [], snacks: {} }); router.push("/book/seats"); }}
-                      className={`rounded-lg border px-3 py-2 text-sm transition hover:scale-105 ${nearlyFull ? "border-orange-400/60 text-orange-300" : "border-emerald-400/60 text-emerald-300"}`}>
+                      className={`rounded-lg border px-3 py-2 text-sm transition hover:scale-105 ${nearlyFull ? "border-gold/60 font-semibold text-gold hover:bg-gold/10" : "border-fg/25 font-semibold text-fg hover:border-fg hover:bg-fg/5"}`}>
                       <div className="font-semibold">{s.time}</div>
-                      <div className="text-[10px] text-white/50">{s.format}{nearlyFull ? " · filling fast" : ""}</div>
+                      <div className="text-[10px] text-fg/50">{s.format}{nearlyFull ? " · filling fast" : ""}</div>
                     </button>
                   );
                 })}

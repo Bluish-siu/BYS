@@ -11,7 +11,7 @@ import { dayLabel, layoutFor, seatsTotal, useHydrated } from "@/lib/pricing";
 import { newInput, type CamMode } from "@/components/SeatHall";
 import SeatMap from "@/components/SeatMap";
 
-const SeatHall = dynamic(() => import("@/components/SeatHall"), { ssr: false, loading: () => <div className="grid h-full place-items-center text-white/50">Building the hall...</div> });
+const SeatHall = dynamic(() => import("@/components/SeatHall"), { ssr: false, loading: () => <div className="grid h-full place-items-center bg-ink text-white/60">Building the hall...</div> });
 
 const MODES: { id: CamMode; label: string }[] = [
   { id: "overview", label: "Overview" },
@@ -99,7 +99,7 @@ export default function SeatsPage() {
   }, [showKey, booked, layout]); // eslint-disable-line react-hooks/exhaustive-deps
   const best = useMemo(() => (layout ? bestsellers(layout) : new Set<string>()), [layout]);
   const movie = booking ? getMovie(booking.movieId) : undefined;
-  if (!ready || !booking || !movie || !layout) return <p className="p-10 text-white/60">Loading...</p>;
+  if (!ready || !booking || !movie || !layout) return <p className="p-10 text-fg/60">Loading...</p>;
 
   const theatre = findTheatre(booking.theatreId);
   const shows = getShows(booking.movieId, booking.city, booking.day).find((t) => t.theatre.id === booking.theatreId)?.shows ?? [];
@@ -130,13 +130,13 @@ export default function SeatsPage() {
   };
 
   return (
-    <div className="fixed inset-x-0 bottom-0 top-[57px] z-40 flex flex-col bg-ink">
+    <div className="fixed inset-x-0 bottom-0 top-[57px] z-40 flex flex-col bg-paper">
       {/* title bar */}
-      <div className="flex items-center gap-3 border-b border-white/10 px-3 py-2 md:px-6">
-        <button aria-label="Back" onClick={() => (view === "3d" ? setView("map") : router.push(`/movie/${movie.id}`))} className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-xl hover:bg-white/10">‹</button>
+      <div className="flex items-center gap-3 border-b border-fg/10 px-3 py-2 md:px-6">
+        <button aria-label="Back" onClick={() => (view === "3d" ? setView("map") : router.push(`/movie/${movie.id}`))} className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-xl hover:bg-fg/10">‹</button>
         <div className="mr-auto min-w-0">
           <p className="truncate font-semibold">{movie.title} ({booking.format}) - {movie.lang}</p>
-          <p className="truncate text-xs text-white/55">{theatre.name} | {dayLabel(booking.day)} | {booking.time}</p>
+          <p className="truncate text-xs text-fg/55">{theatre.name} | {dayLabel(booking.day)} | {booking.time}</p>
         </div>
         {view === "map" ? (
           <button onClick={() => enter3d("overview")} className="btn btn-ghost shrink-0 !px-3 !py-1.5 text-xs">View hall in 3D</button>
@@ -148,13 +148,13 @@ export default function SeatsPage() {
       {view === "map" ? (
         <>
           {/* other showtimes at this theatre */}
-          <div className="flex gap-2 overflow-x-auto border-b border-white/10 bg-white/[0.03] px-3 py-2 md:px-6">
+          <div className="flex gap-2 overflow-x-auto border-b border-fg/10 bg-fg/[0.03] px-3 py-2 md:px-6">
             {shows.map((s) => {
               const active = s.id === booking.showId;
               return (
                 <button key={s.id}
                   onClick={() => { if (!active) { patch({ showId: s.id, time: s.time, format: s.format, fill: s.fill, seats: [] }); setMsg(""); } }}
-                  className={`shrink-0 rounded-md border px-3 py-1 text-center text-xs ${active ? "border-emerald-500 bg-emerald-500 text-white" : s.fill > 0.75 ? "border-amber-400/70 text-amber-200" : "border-emerald-500/60 text-emerald-300"}`}>
+                  className={`shrink-0 rounded-md border px-3 py-1 text-center text-xs ${active ? "border-fg bg-fg text-paper" : s.fill > 0.75 ? "border-gold/70 text-gold" : "border-fg/25 text-fg/80 hover:border-fg/60"}`}>
                   <div className="font-semibold">{s.time}</div>
                   <div className="text-[9px] opacity-80">{s.format}</div>
                 </button>
@@ -164,31 +164,31 @@ export default function SeatsPage() {
           <div className="min-h-0 flex-1">
             <SeatMap layout={layout} sold={sold} picked={picked} bestseller={best} onPick={toggle} />
           </div>
-          <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1 border-t border-white/10 py-2 text-xs text-white/70">
-            <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm border border-emerald-500/70" />Available</span>
-            <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm bg-white/15" />Sold</span>
-            <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm border border-amber-400" />Bestseller</span>
-            <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm bg-emerald-500" />Selected</span>
-            <span className="text-white/40">Tap a seat to see your view in 3D</span>
+          <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1 border-t border-fg/10 py-2 text-xs text-fg/70">
+            <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm border border-fg/40" />Available</span>
+            <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm bg-fg/15" />Sold</span>
+            <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm border border-gold" />Bestseller</span>
+            <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm bg-brand" />Selected</span>
+            <span className="text-fg/40">Tap a seat to see your view in 3D</span>
           </div>
         </>
       ) : (
         <>
-          <div className="flex gap-2 overflow-x-auto border-b border-white/10 px-3 py-2 text-sm md:px-6">
+          <div className="flex gap-2 overflow-x-auto border-b border-fg/10 px-3 py-2 text-sm md:px-6">
             {MODES.map((m) => <button key={m.id} onClick={() => { setTour(false); setMode(m.id); }} className={`btn shrink-0 !px-3 !py-1.5 text-xs ${mode === m.id && !tour ? "btn-brand" : "btn-ghost"}`}>{m.label}</button>)}
             <button disabled={!last} onClick={() => { setTour(false); setMode("seat"); }} className={`btn shrink-0 !px-3 !py-1.5 text-xs disabled:opacity-40 ${mode === "seat" && !tour ? "btn-brand" : "btn-ghost"}`}>From my seat</button>
             <button onClick={() => { setTour(false); setMode("walk"); }} className={`btn shrink-0 !px-3 !py-1.5 text-xs ${mode === "walk" && !tour ? "btn-brand" : "btn-ghost"}`}>Walk around</button>
             <button onClick={() => setTour((t) => !t)} className={`btn shrink-0 !px-3 !py-1.5 text-xs ${tour ? "btn-brand" : "btn-ghost"}`}>{tour ? "Stop tour" : "Auto tour"}</button>
           </div>
-          <div className="fade-in relative min-h-0 flex-1">
+          <div className="on-dark fade-in relative min-h-0 flex-1 bg-ink text-white">
             <SeatHall layout={layout} format={booking.format} movie={movie} sold={sold} picked={picked} onPick={toggle} mode={mode} seat={last} input={input} onWalk={onWalk} />
             <div className="pointer-events-none absolute left-3 top-3 max-h-[70%] space-y-1.5 overflow-hidden rounded-2xl border border-white/10 bg-black/45 p-3 text-[11px] backdrop-blur-md">
               {layout.legend.map((l) => (
                 <div key={`${l.kind}${l.price}`} className="flex items-center gap-2"><span className="h-3 w-3 rounded-sm" style={{ background: KIND_COLOR[l.kind] }} />{l.name} ₹{l.price}</div>
               ))}
-              <div className="flex items-center gap-2"><span className="h-3 w-3 rounded-sm" style={{ background: "#2ee08a" }} />Your pick</div>
+              <div className="flex items-center gap-2"><span className="h-3 w-3 rounded-sm" style={{ background: "#FF5A36" }} />Your pick</div>
               <div className="flex items-center gap-2"><span className="h-3 w-3 rounded-sm" style={{ background: "#2b2b31" }} />Sold</div>
-              <div className="hidden pt-1 text-white/45 sm:block">Drag to look 360°<br />WASD or arrows to walk<br />Tap a seat to sit there</div>
+              <div className="hidden pt-1 text-white/50 sm:block">Drag to look 360°<br />WASD or arrows to walk<br />Tap a seat to sit there</div>
             </div>
             {mode === "seat" && last && lastRow && (
               <div className="pointer-events-none absolute left-1/2 top-3 -translate-x-1/2 whitespace-nowrap rounded-full border border-white/10 bg-black/45 px-4 py-1.5 text-sm backdrop-blur-md">
@@ -208,20 +208,20 @@ export default function SeatsPage() {
         </>
       )}
 
-      <div className="flex flex-wrap items-center gap-3 border-t border-white/10 bg-panel/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur">
+      <div className="flex flex-wrap items-center gap-3 border-t border-fg/10 bg-card/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur">
         <div className="flex items-center gap-2 text-sm">
           <button className="btn btn-ghost !px-3 !py-1" onClick={() => setQty(Math.max(1, qty - 1))}>-</button>
           <span className="w-4 text-center">{qty}</span>
           <button className="btn btn-ghost !px-3 !py-1" onClick={() => setQty(Math.min(8, qty + 1))}>+</button>
           <button className="btn btn-ghost !py-1.5 text-sm" onClick={pickBest}>✦ Best {qty} seat{qty > 1 ? "s" : ""}</button>
         </div>
-        <div className="mr-auto min-w-0 text-sm text-white/70">{msg || (picked.length ? `${picked.join(", ")}` : "Tap a seat to pick it")}</div>
+        <div className="mr-auto min-w-0 text-sm text-fg/70">{msg || (picked.length ? `${picked.join(", ")}` : "Tap a seat to pick it")}</div>
         {view === "map" && last && (
           <button onClick={() => enter3d("seat")} className="btn btn-ghost !py-1.5 text-sm">👁 View from {last}</button>
         )}
         <div className="text-right text-sm">
           <div className="font-bold">₹{seatsTotal(booking)}</div>
-          <div className="text-xs text-white/50">{picked.length} seat{picked.length === 1 ? "" : "s"}{lastRow ? ` · ${lastRow.section}` : ""}</div>
+          <div className="text-xs text-fg/50">{picked.length} seat{picked.length === 1 ? "" : "s"}{lastRow ? ` · ${lastRow.section}` : ""}</div>
         </div>
         <button disabled={!picked.length} onClick={() => router.push("/book/snacks")} className="btn btn-brand disabled:opacity-40">Continue</button>
       </div>

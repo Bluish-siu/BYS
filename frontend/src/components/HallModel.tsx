@@ -99,7 +99,7 @@ const getKindMat = (k: Kind) => {
   return m;
 };
 const SOLD = mat("#3b3d47", 0.95);
-const PICKED = mat("#2ee08a", 0.6, { emissive: new THREE.Color("#18c46c"), emissiveIntensity: 0.9 });
+const PICKED = mat("#FF5A36", 0.6, { emissive: new THREE.Color("#E8431F"), emissiveIntensity: 0.9 });
 const DARK = mat("#17171c", 0.5, { metalness: 0.3 });
 
 function Seat({ kind, state, x, y, z, onPick, input }: {

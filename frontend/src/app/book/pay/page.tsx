@@ -28,7 +28,7 @@ export default function PayPage() {
     if (!apiEnabled) return;
     fetchPaymentConfig().then((c) => { setConfig(c); setChecked(true); if (c?.razorpay) loadRazorpay(); });
   }, []);
-  if (!ready || !booking) return <p className="p-10 text-white/60">Loading...</p>;
+  if (!ready || !booking) return <p className="p-10 text-fg/60">Loading...</p>;
 
   const movie = getMovie(booking.movieId) ?? movies[0];
   const theatre = findTheatre(booking.theatreId);
@@ -62,7 +62,7 @@ export default function PayPage() {
       name: "PickMySeat",
       description: `${movie.title} · ${booking.seats.length} ticket${booking.seats.length > 1 ? "s" : ""} · ${booking.seats.join(", ")}`,
       notes: { booking: order.bookingId },
-      theme: { color: "#ff3d5a" },
+      theme: { color: "#FF5A36" },
       timeout: order.holdMinutes * 60,
       handler: async (r: RazorpayResult) => {
         setError("");
@@ -104,15 +104,15 @@ export default function PayPage() {
       </div>
       <div className="card space-y-2 p-5 text-sm">
         <p className="text-lg font-bold">{movie.title}</p>
-        <p className="text-white/60">{theatre.name} · {booking.city} · {dayLabel(booking.day)} · {booking.time} · {booking.format}</p>
-        <hr className="border-white/10" />
+        <p className="text-fg/60">{theatre.name} · {booking.city} · {dayLabel(booking.day)} · {booking.time} · {booking.format}</p>
+        <hr className="border-fg/10" />
         <Row l={`Seats ${booking.seats.join(", ")}`} r={`₹${seatsTotal(booking)}`} />
         {Object.entries(booking.snacks).map(([id, q]) => {
           const s = snacks.find((x) => x.id === id)!;
           return <Row key={id} l={`${s.name} × ${q}`} r={`₹${s.price * q}`} />;
         })}
         <Row l="Convenience fee" r={`₹${FEE}`} />
-        <hr className="border-white/10" />
+        <hr className="border-fg/10" />
         <div className="flex justify-between text-lg font-bold"><span>Amount payable</span><span>₹{total}</span></div>
       </div>
 
@@ -120,17 +120,17 @@ export default function PayPage() {
         <div className="card mt-5 space-y-3 p-5 text-sm">
           <div className="flex items-center justify-between">
             <span className="font-semibold">Pay securely with Razorpay</span>
-            <span className="text-xs text-white/50">UPI · Cards · Netbanking · Wallets</span>
+            <span className="text-xs text-fg/50">UPI · Cards · Netbanking · Wallets</span>
           </div>
-          <p className="text-xs text-white/50">Your seats are held for 10 minutes while you pay. Closing the payment window releases them.</p>
-          <details className="rounded-lg bg-white/5 p-3 text-xs text-white/70">
-            <summary className="cursor-pointer font-semibold text-white/80">Test payment details</summary>
+          <p className="text-xs text-fg/50">Your seats are held for 10 minutes while you pay. Closing the payment window releases them.</p>
+          <details className="rounded-lg bg-fg/5 p-3 text-xs text-fg/70">
+            <summary className="cursor-pointer font-semibold text-fg/80">Test payment details</summary>
             <ul className="mt-2 space-y-1">
               <li>UPI: <code>success@razorpay</code> (or <code>failure@razorpay</code> to see a failed payment)</li>
               <li>Card: <code>4111 1111 1111 1111</code>, any future expiry, any CVV, any OTP</li>
               <li>Netbanking: pick any bank, then Success on Razorpay&apos;s test page</li>
             </ul>
-            <p className="mt-2 text-white/40">Test mode: no real money is charged.</p>
+            <p className="mt-2 text-fg/40">Test mode: no real money is charged.</p>
           </details>
         </div>
       ) : checked ? (
@@ -140,7 +140,7 @@ export default function PayPage() {
               <button key={id} onClick={() => setMethod(id)} className={`btn ${method === id ? "btn-brand" : "btn-ghost"}`}>{l}</button>
             ))}
           </div>
-          <p className="mt-2 text-xs text-white/40">Demo only. No real payment is taken and no details are collected.</p>
+          <p className="mt-2 text-xs text-fg/40">Demo only. No real payment is taken and no details are collected.</p>
         </>
       ) : null}
 
@@ -156,7 +156,7 @@ export default function PayPage() {
           {paying ? (razorpayOn ? "Waiting for payment..." : "Processing...") : `Pay ₹${total}`}
         </button>
       </div>
-      {razorpayOn && <p className="mt-3 text-center text-[11px] text-white/40">Payments are processed by Razorpay. PickMySeat never sees your card or UPI details.</p>}
+      {razorpayOn && <p className="mt-3 text-center text-[11px] text-fg/40">Payments are processed by Razorpay. PickMySeat never sees your card or UPI details.</p>}
     </div>
   );
 }

@@ -39,13 +39,13 @@ export default function SeatMap({ layout, sold, picked, bestseller, onPick }: {
         <div ref={inner} className="mx-auto w-max" style={{ zoom }}>
           {sections.map((sec) => (
             <section key={sec.key} className="mb-6">
-              <h3 className="mb-3 border-b border-white/10 pb-2 text-center text-[11px] font-semibold uppercase tracking-wider text-white/60">
+              <h3 className="mb-3 border-b border-fg/10 pb-2 text-center text-[11px] font-semibold uppercase tracking-wider text-fg/60">
                 ₹{sec.price} {sec.name}
               </h3>
               <div className="space-y-1.5">
                 {sec.rows.map((row) => (
                   <div key={row.letter} className="flex items-center">
-                    <span className="w-7 shrink-0 text-xs font-medium text-white/45">{row.letter}</span>
+                    <span className="w-7 shrink-0 text-xs font-medium text-fg/45">{row.letter}</span>
                     <div className="flex flex-1 justify-center gap-1">
                       {row.seats.map((s, i) => {
                         const isSold = sold.has(s.id);
@@ -53,12 +53,12 @@ export default function SeatMap({ layout, sold, picked, bestseller, onPick }: {
                         const isBest = !isSold && !isPicked && bestseller.has(s.id);
                         const gap = i > 0 && s.group !== row.seats[i - 1].group;
                         const look = isSold
-                          ? "cursor-not-allowed border-transparent bg-white/[0.06] text-white/20"
+                          ? "cursor-not-allowed border-transparent bg-fg/[0.06] text-fg/20"
                           : isPicked
-                            ? "border-emerald-500 bg-emerald-500 font-bold text-white shadow-[0_0_12px_rgba(16,185,129,0.6)]"
+                            ? "border-brand bg-brand font-bold text-white shadow-[0_4px_14px_rgba(255,90,54,0.45)]"
                             : isBest
-                              ? "border-amber-400 text-amber-200 hover:bg-amber-400/20"
-                              : "border-emerald-500/70 text-emerald-300 hover:bg-emerald-500/20";
+                              ? "border-gold text-gold hover:bg-gold/10"
+                              : "border-fg/40 text-fg/80 hover:border-fg hover:bg-fg/5";
                         return (
                           <button
                             key={s.id}
@@ -79,25 +79,25 @@ export default function SeatMap({ layout, sold, picked, bestseller, onPick }: {
               </div>
             </section>
           ))}
-          {/* the screen, drawn as a glowing trapezoid like the BookMyShow layout */}
+          {/* the screen, drawn as a trapezoid like the BookMyShow layout */}
           <div className="mx-auto mt-8 w-[70%] min-w-[260px]">
-            <svg viewBox="0 0 400 34" className="w-full drop-shadow-[0_8px_24px_rgba(125,211,252,0.45)]">
+            <svg viewBox="0 0 400 34" className="w-full">
               <defs>
                 <linearGradient id="scr" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0" stopColor="#bae6fd" /><stop offset="1" stopColor="#38bdf8" stopOpacity="0.35" />
+                  <stop offset="0" stopColor="#16161A" stopOpacity="0.85" /><stop offset="1" stopColor="#16161A" stopOpacity="0.15" />
                 </linearGradient>
               </defs>
-              <path d="M30 4 H370 L398 30 H2 Z" fill="url(#scr)" stroke="#e0f2fe" strokeOpacity="0.6" />
+              <path d="M30 4 H370 L398 30 H2 Z" fill="url(#scr)" />
             </svg>
-            <p className="mt-2 text-center text-xs text-white/50">All eyes this way please</p>
+            <p className="mt-2 text-center text-xs text-fg/50">All eyes this way please</p>
           </div>
         </div>
       </div>
 
       {/* zoom controls */}
       <div className="absolute bottom-4 right-4 flex flex-col gap-2">
-        <button aria-label="Zoom in" onClick={() => setZoom((z) => Math.min(1.8, z + 0.15))} className="grid h-10 w-10 place-items-center rounded-full border border-white/20 bg-panel text-xl hover:bg-white/10">+</button>
-        <button aria-label="Zoom out" onClick={() => setZoom((z) => Math.max(0.45, z - 0.15))} className="grid h-10 w-10 place-items-center rounded-full border border-white/20 bg-panel text-xl hover:bg-white/10">−</button>
+        <button aria-label="Zoom in" onClick={() => setZoom((z) => Math.min(1.8, z + 0.15))} className="grid h-10 w-10 place-items-center rounded-full border border-fg/20 bg-card text-xl hover:bg-fg/10">+</button>
+        <button aria-label="Zoom out" onClick={() => setZoom((z) => Math.max(0.45, z - 0.15))} className="grid h-10 w-10 place-items-center rounded-full border border-fg/20 bg-card text-xl hover:bg-fg/10">−</button>
       </div>
     </div>
   );

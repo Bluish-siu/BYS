@@ -22,7 +22,7 @@ export default function MoviesPage() {
           <Link key={m.id} href={`/movie/${m.id}`}>
             <Poster movie={m} />
             <p className="mt-2 text-sm font-semibold">{m.title}</p>
-            <p className="text-xs text-white/50">{m.genre} · ★ {m.rating}</p>
+            <p className="text-xs text-fg/50">{m.genre} · ★ {m.rating}</p>
           </Link>
         ))}
       </div>

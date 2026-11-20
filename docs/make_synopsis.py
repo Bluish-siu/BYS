@@ -14,7 +14,7 @@ from reportlab.platypus import Image, ListFlowable, ListItem, Paragraph, SimpleD
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "PickMySeat-Synopsis-Shraddha-Desai-26MCA25.pdf")
-LOGO = os.path.join(HERE, "brand", "logo-full-light.png")
+LOGO = os.path.join(HERE, "brand", "logo-full-transparent.png")
 
 F = r"C:\Windows\Fonts"
 pdfmetrics.registerFont(TTFont("TNR", os.path.join(F, "times.ttf")))
@@ -56,7 +56,9 @@ def table(rows, widths, head=True):
 
 
 # ---------- cover ----------
-logo = Image(LOGO, width=70 * mm, height=70 * mm * 276 / 1150)
+from PIL import Image as PILImage
+_lw, _lh = PILImage.open(LOGO).size
+logo = Image(LOGO, width=75 * mm, height=75 * mm * _lh / _lw)
 logo.hAlign = "LEFT"
 S.append(logo)
 S.append(Spacer(1, 8))

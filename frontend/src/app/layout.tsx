@@ -1,6 +1,9 @@
 import "./globals.css";
 import type { Metadata, Viewport } from "next";
+import { Sora } from "next/font/google";
 import Header from "@/components/Header";
+
+const sora = Sora({ subsets: ["latin"], weight: ["400", "500", "600", "700", "800"], variable: "--font-sora", display: "swap" });
 
 export const metadata: Metadata = {
   title: "PickMySeat - see your seat before you book",
@@ -18,18 +21,18 @@ export const metadata: Metadata = {
     type: "website",
   },
   twitter: { card: "summary_large_image", images: ["/og-image.png"] },
-  appleWebApp: { capable: true, title: "PickMySeat", statusBarStyle: "black-translucent" },
+  appleWebApp: { capable: true, title: "PickMySeat", statusBarStyle: "default" },
 };
 // viewport-fit=cover lets the app draw under the notch; the header and bottom bars pad with safe-area insets.
-export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#07070c" };
+export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#F3EEE5" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body className="min-h-screen">
+    <html lang="en" className={sora.variable}>
+      <body className="min-h-screen font-sans antialiased">
         <Header />
         <main>{children}</main>
-        <footer className="px-6 py-10 text-center text-sm text-white/40">Demo project. All movie data is dummy data.</footer>
+        <footer className="px-6 py-10 text-center text-sm text-fg/45">Demo project. All movie data is dummy data.</footer>
       </body>
     </html>
   );
