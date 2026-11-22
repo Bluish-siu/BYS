@@ -107,7 +107,7 @@ table([
     ["Layer", "Technology"],
     ["Website (frontend)", "Next.js 14, React 18, TypeScript, Tailwind CSS, Zustand, qrcode; hosted on Vercel"],
     ["3D cinema hall", "Three.js with React Three Fiber and drei (WebGL)"],
-    ["Android app", "Capacitor (same Next.js code as static files), built with Android Studio into an APK"],
+    ["Android app", "Android APK built from the same web code with Android Studio, installed directly on the phone (no Play Store)"],
     ["Backend", "Node.js 24 REST API (built-in http module); payment routes also run as Vercel serverless functions"],
     ["Database", "SQLite through Node's built-in node:sqlite"],
     ["Payments", "Razorpay Checkout (test mode) with server-side HMAC-SHA256 verification"],
