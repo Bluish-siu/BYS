@@ -1,0 +1,52 @@
+plugins {
+    id "com.android.application"
+}
+
+// The website the app opens. Change it here if the site moves.
+def siteUrl = "https://bys-sooty.vercel.app"
+
+// Release signing: android/keystore.properties (not in git). Without it, release builds use the debug key.
+def keystoreFile = rootProject.file("keystore.properties")
+def keystore = new Properties()
+if (keystoreFile.exists()) keystoreFile.withInputStream { keystore.load(it) }
+
+android {
+    namespace "com.pickmyseat.app"
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "com.pickmyseat.app"
+        minSdk 24
+        targetSdk 35
+        versionCode 1
+        versionName "1.0"
+        buildConfigField "String", "SITE_URL", "\"${siteUrl}\""
+    }
+
+    signingConfigs {
+        release {
+            if (keystoreFile.exists()) {
+                storeFile rootProject.file(keystore["storeFile"])
+                storePassword keystore["storePassword"]
+                keyAlias keystore["keyAlias"]
+                keyPassword keystore["keyPassword"]
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig keystoreFile.exists() ? signingConfigs.release : signingConfigs.debug
+        }
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

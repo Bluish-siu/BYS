@@ -1,0 +1,362 @@
+package com.pickmyseat.app;
+
+import android.annotation.SuppressLint;
+import android.app.Activity;
+import android.content.ActivityNotFoundException;
+import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.Color;
+import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
+import android.net.Uri;
+import android.os.Build;
+import android.os.Bundle;
+import android.os.Message;
+import android.view.Gravity;
+import android.view.View;
+import android.view.ViewGroup;
+import android.view.WindowInsets;
+import android.view.WindowInsetsController;
+import android.webkit.CookieManager;
+import android.webkit.PermissionRequest;
+import android.webkit.WebChromeClient;
+import android.webkit.WebResourceError;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
+import android.widget.Button;
+import android.widget.FrameLayout;
+import android.widget.LinearLayout;
+import android.widget.ProgressBar;
+import android.widget.TextView;
+import android.widget.Toast;
+
+/**
+ * PickMySeat for Android: the PickMySeat website in a full-screen WebView, so the app has every feature the site has
+ * (3D hall, trailers, seat map, Razorpay test payments, tickets) and updates whenever the site is redeployed.
+ */
+public class MainActivity extends Activity {
+    private static final int PAPER = Color.parseColor("#F3EEE5");
+    private static final int INK = Color.parseColor("#16161A");
+    private static final int BRAND = Color.parseColor("#FF5A36");
+
+    private FrameLayout root;
+    private WebView web;
+    private WebView popup;          // window.open() pages, such as a bank page during a Razorpay payment
+    private View offline;
+    private ProgressBar progress;
+    private View fullscreenView;    // a video playing full screen
+    private WebChromeClient.CustomViewCallback fullscreenCallback;
+    private boolean loadFailed;
+
+    @Override
+    protected void onCreate(Bundle state) {
+        super.onCreate(state);
+        WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG);
+
+        root = new FrameLayout(this);
+        root.setBackgroundColor(PAPER);
+        setContentView(root);
+        keepClearOfSystemBars();
+
+        web = newWebView();
+        root.addView(web, match());
+
+        progress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+        progress.setIndeterminate(false);
+        progress.setMax(100);
+        progress.setProgressTintList(android.content.res.ColorStateList.valueOf(BRAND));
+        progress.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.TRANSPARENT));
+        root.addView(progress, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(3), Gravity.TOP));
+
+        offline = buildOfflineView();
+        offline.setVisibility(View.GONE);
+        root.addView(offline, match());
+
+        if (state != null && web.restoreState(state) != null) return;
+        web.loadUrl(BuildConfig.SITE_URL);
+    }
+
+    // ---------- WebView setup ----------
+
+    @SuppressLint("SetJavaScriptEnabled")
+    private WebView newWebView() {
+        WebView w = new WebView(this);
+        w.setBackgroundColor(PAPER);
+        WebSettings s = w.getSettings();
+        s.setJavaScriptEnabled(true);
+        s.setDomStorageEnabled(true);                 // tickets and the booking are kept in localStorage
+        s.setDatabaseEnabled(true);
+        s.setMediaPlaybackRequiresUserGesture(false); // trailers start on the 3D screen by themselves
+        s.setSupportMultipleWindows(true);
+        s.setJavaScriptCanOpenWindowsAutomatically(true);
+        s.setLoadWithOverviewMode(true);
+        s.setUseWideViewPort(true);
+        s.setSupportZoom(false);
+        s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
+        s.setUserAgentString(s.getUserAgentString() + " PickMySeatApp/" + BuildConfig.VERSION_NAME);
+        CookieManager.getInstance().setAcceptCookie(true);
+        CookieManager.getInstance().setAcceptThirdPartyCookies(w, true); // Razorpay checkout runs in an iframe
+        w.setWebViewClient(new Client());
+        w.setWebChromeClient(new Chrome());
+        return w;
+    }
+
+    private class Client extends WebViewClient {
+        @Override
+        public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+            return openOutside(request.getUrl());
+        }
+
+        @Override
+        public void onPageStarted(WebView view, String url, Bitmap favicon) {
+            if (view == web) loadFailed = false;
+        }
+
+        @Override
+        public void onPageFinished(WebView view, String url) {
+            if (view == web && !loadFailed) offline.setVisibility(View.GONE);
+        }
+
+        @Override
+        public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
+            if (view == web && request.isForMainFrame()) {
+                loadFailed = true;
+                offline.setVisibility(View.VISIBLE);
+            }
+        }
+    }
+
+    /** Web links stay in the app. upi:, tel:, mailto: and intent: links open the matching app (UPI apps, dialer...). */
+    private boolean openOutside(Uri uri) {
+        String scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase();
+        switch (scheme) {
+            case "http": case "https": case "about": case "data": case "blob": case "javascript":
+                return false;
+        }
+        try {
+            Intent intent;
+            if (scheme.equals("intent")) {
+                intent = Intent.parseUri(uri.toString(), Intent.URI_INTENT_SCHEME);
+                intent.addCategory(Intent.CATEGORY_BROWSABLE);
+                intent.setComponent(null);
+                intent.setSelector(null);
+                try {
+                    startActivity(intent);
+                } catch (ActivityNotFoundException e) {
+                    String fallback = intent.getStringExtra("browser_fallback_url");
+                    if (fallback != null) web.loadUrl(fallback);
+                    else toast("No app found to open this");
+                }
+                return true;
+            }
+            intent = new Intent(Intent.ACTION_VIEW, uri);
+            startActivity(intent);
+        } catch (ActivityNotFoundException e) {
+            toast(scheme.equals("upi") ? "No UPI app found on this phone" : "No app found to open this");
+        } catch (Exception e) {
+            toast("Couldn't open this link");
+        }
+        return true;
+    }
+
+    private class Chrome extends WebChromeClient {
+        @Override
+        public void onProgressChanged(WebView view, int p) {
+            if (view != web) return;
+            progress.setProgress(p);
+            progress.setVisibility(p >= 100 ? View.GONE : View.VISIBLE);
+        }
+
+        // Full-screen video (the YouTube player's full-screen button)
+        @Override
+        public void onShowCustomView(View view, CustomViewCallback callback) {
+            if (fullscreenView != null) { callback.onCustomViewHidden(); return; }
+            fullscreenView = view;
+            fullscreenCallback = callback;
+            view.setBackgroundColor(Color.BLACK);
+            root.addView(view, match());
+            setSystemBarsHidden(true);
+        }
+
+        @Override
+        public void onHideCustomView() {
+            exitFullscreen();
+        }
+
+        // window.open(): shown on top of the app, closed by window.close() or Back
+        @Override
+        public boolean onCreateWindow(WebView view, boolean isDialog, boolean isUserGesture, Message resultMsg) {
+            closePopup();
+            popup = newWebView();
+            root.addView(popup, match());
+            ((WebView.WebViewTransport) resultMsg.obj).setWebView(popup);
+            resultMsg.sendToTarget();
+            return true;
+        }
+
+        @Override
+        public void onCloseWindow(WebView window) {
+            if (window == popup) closePopup();
+        }
+
+        // The site does not use the camera, microphone or location.
+        @Override
+        public void onPermissionRequest(PermissionRequest request) {
+            request.deny();
+        }
+    }
+
+    private void exitFullscreen() {
+        if (fullscreenView == null) return;
+        root.removeView(fullscreenView);
+        fullscreenView = null;
+        if (fullscreenCallback != null) fullscreenCallback.onCustomViewHidden();
+        fullscreenCallback = null;
+        setSystemBarsHidden(false);
+    }
+
+    private void closePopup() {
+        if (popup == null) return;
+        root.removeView(popup);
+        popup.destroy();
+        popup = null;
+    }
+
+    // ---------- Screen layout ----------
+
+    /** Android 15 draws apps under the status and navigation bars: pad the content so nothing hides behind them. */
+    private void keepClearOfSystemBars() {
+        root.setOnApplyWindowInsetsListener((v, insets) -> {
+            int top, bottom, left, right;
+            if (Build.VERSION.SDK_INT >= 30) {
+                android.graphics.Insets bars = insets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
+                android.graphics.Insets ime = insets.getInsets(WindowInsets.Type.ime());
+                top = bars.top; left = bars.left; right = bars.right; bottom = Math.max(bars.bottom, ime.bottom);
+            } else {
+                top = insets.getSystemWindowInsetTop(); bottom = insets.getSystemWindowInsetBottom();
+                left = insets.getSystemWindowInsetLeft(); right = insets.getSystemWindowInsetRight();
+            }
+            v.setPadding(left, top, right, bottom);
+            return insets;
+        });
+    }
+
+    @SuppressWarnings("deprecation")
+    private void setSystemBarsHidden(boolean hidden) {
+        if (Build.VERSION.SDK_INT >= 30) {
+            WindowInsetsController c = getWindow().getInsetsController();
+            if (c == null) return;
+            if (hidden) {
+                c.hide(WindowInsets.Type.systemBars());
+                c.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+            } else {
+                c.show(WindowInsets.Type.systemBars());
+            }
+        } else {
+            View d = getWindow().getDecorView();
+            d.setSystemUiVisibility(hidden
+                    ? View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                    : View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
+        }
+    }
+
+    private View buildOfflineView() {
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setGravity(Gravity.CENTER);
+        box.setBackgroundColor(PAPER);
+        box.setPadding(dp(32), dp(32), dp(32), dp(32));
+        box.setClickable(true);
+
+        TextView title = new TextView(this);
+        title.setText("You're offline");
+        title.setTextColor(INK);
+        title.setTextSize(22);
+        title.setTypeface(Typeface.DEFAULT_BOLD);
+        title.setGravity(Gravity.CENTER);
+        box.addView(title);
+
+        TextView msg = new TextView(this);
+        msg.setText("PickMySeat needs the internet to show movies, seats and payments. Check your connection and try again.");
+        msg.setTextColor(Color.parseColor("#5B5A57"));
+        msg.setTextSize(15);
+        msg.setGravity(Gravity.CENTER);
+        msg.setPadding(0, dp(10), 0, dp(22));
+        box.addView(msg);
+
+        Button retry = new Button(this);
+        retry.setText("Try again");
+        retry.setAllCaps(false);
+        retry.setTextColor(Color.WHITE);
+        retry.setTextSize(16);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(BRAND);
+        bg.setCornerRadius(dp(12));
+        retry.setBackground(bg);
+        retry.setPadding(dp(28), 0, dp(28), 0);
+        retry.setOnClickListener(v -> {
+            String url = web.getUrl();
+            if (url == null || url.startsWith("data:") || url.startsWith("about:")) web.loadUrl(BuildConfig.SITE_URL);
+            else web.reload();
+        });
+        box.addView(retry, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(48)));
+        return box;
+    }
+
+    // ---------- Lifecycle ----------
+
+    @Override
+    @SuppressWarnings("deprecation")
+    public void onBackPressed() {
+        if (fullscreenView != null) { exitFullscreen(); return; }
+        if (popup != null) {
+            if (popup.canGoBack()) popup.goBack();
+            else closePopup();
+            return;
+        }
+        if (web.canGoBack()) { web.goBack(); return; }
+        super.onBackPressed();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        web.onPause();                       // stops the trailer sound when the app goes to the background
+        CookieManager.getInstance().flush();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        web.onResume();
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle out) {
+        super.onSaveInstanceState(out);
+        web.saveState(out);
+    }
+
+    @Override
+    protected void onDestroy() {
+        closePopup();
+        if (web != null) web.destroy();
+        super.onDestroy();
+    }
+
+    // ---------- Helpers ----------
+
+    private int dp(int v) {
+        return Math.round(v * getResources().getDisplayMetrics().density);
+    }
+
+    private static FrameLayout.LayoutParams match() {
+        return new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+    }
+
+    private void toast(String text) {
+        Toast.makeText(this, text, Toast.LENGTH_SHORT).show();
+    }
+}

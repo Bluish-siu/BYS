@@ -22,8 +22,27 @@ PICKMYSEAT/
 │   ├── schema.sql         Tables: movies, cities, theatres, snacks, bookings, booked_seats
 │   ├── seed.sql           Catalogue data (generated)
 │   └── generate-seed.mjs  Rebuilds seed.sql from frontend/src/lib/data.ts
+├── android/               Android app (APK)
+│   ├── app/src/main/      MainActivity (WebView), manifest, icons
+│   ├── release/           PickMySeat.apk, ready to install
+│   └── make_icons.py      Rebuilds the launcher icons from the logo
 └── docs/                  Project synopsis (PDF) and its generator, logo files (brand/)
 ```
+
+## Android app (APK)
+
+`android/release/PickMySeat.apk` installs directly on an Android phone (Android 7.0 or newer). Copy it to the phone, open it, and allow "Install unknown apps" for your file manager when Android asks.
+
+The app opens the live website (https://bys-sooty.vercel.app) full screen, so it has every feature of the site and updates whenever the site is redeployed. It adds an app icon and launch screen, the Back button, full-screen trailers, Razorpay payment windows, UPI apps and an offline screen. It needs the internet.
+
+To rebuild it, open `android/` in Android Studio and choose **Build → Generate Signed App Bundle / APK**, or from a terminal:
+
+```bash
+cd android
+gradlew assembleRelease
+```
+
+The release key (`pickmyseat-release.jks`) and its passwords (`keystore.properties`) stay on the PC that built the app and are not in git. Keep them: updates to an installed app must be signed with the same key. Without them, the build uses Android's debug key.
 
 ## Requirements
 

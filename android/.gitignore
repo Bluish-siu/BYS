@@ -1,0 +1,10 @@
+.gradle/
+build/
+app/build/
+local.properties
+.idea/
+*.iml
+captures/
+# Signing key and its passwords stay on this PC only
+*.jks
+keystore.properties
