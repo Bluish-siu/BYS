@@ -14,20 +14,20 @@ export async function GET(req: Request) {
   return Response.json({ blocks: rows });
 }
 
-// POST { movieId, theatreId, day, showId, seats }: takes seats off sale for that show (house seats, broken seats, VIPs).
+// POST { movieId, theatreId, date, showId, seats }: takes seats off sale for that show (house seats, broken seats, VIPs).
 export async function POST(req: Request) {
   const a = await requireAdmin(req);
   if ("res" in a) return a.res;
   const body = await req.json().catch(() => ({}));
-  const found = await findShow(body.movieId, body.theatreId, body.day, body.showId);
+  const found = await findShow(body.movieId, body.theatreId, body.date, body.showId);
   if (!found.ok) return Response.json({ error: found.error }, { status: found.status });
-  const { theatre, show, day, movieId } = found;
+  const { theatre, show, date, movieId } = found;
   const layout = layoutFor({ theatreId: theatre.id });
   const seats: string[] = Array.isArray(body.seats) ? [...new Set<string>(body.seats.map(String))] : [];
   if (!seats.length || seats.length > 100 || !seats.every((s) => layout.byId.has(s))) return Response.json({ error: "Pick seats that exist in this theatre" }, { status: 400 });
-  const r = await reserve(sql!, { movieId, theatreId: theatre.id, city: theatre.city, day, showId: show.id, time: show.time, format: show.format, seats, snacks: {}, total: 0 }, "blocked", a.user.id);
+  const r = await reserve(sql!, { movieId, theatreId: theatre.id, city: theatre.city, date, showId: show.id, time: show.time, format: show.format, seats, snacks: {}, total: 0 }, "blocked", a.user.id);
   if (!r.ok) return takenResponse(r.taken);
-  return Response.json({ ok: true, id: r.id, showKey: showKeyOf({ movieId, showId: show.id, day }) });
+  return Response.json({ ok: true, id: r.id, showKey: showKeyOf({ movieId, showId: show.id, date }) });
 }
 
 // DELETE ?id=BLK...: puts those seats back on sale.

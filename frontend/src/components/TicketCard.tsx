@@ -5,14 +5,14 @@ import { useEffect, useState } from "react";
 import { allMovies, findTheatre, getMovie } from "@/lib/catalog";
 import { useCatalog } from "@/lib/use-catalog";
 import type { Ticket } from "@/lib/store";
+import { dateLabel } from "@/lib/dates";
 
 export default function TicketCard({ ticket, link = false }: { ticket: Ticket; link?: boolean }) {
   const [qr, setQr] = useState("");
   useCatalog();
   const b = ticket.booking;
   const movie = getMovie(b.movieId) ?? allMovies()[0];
-  // "day" counts from the day the ticket was bought, so the show date stays right when you look later.
-  const showDate = new Date(ticket.at + b.day * 86_400_000).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" });
+  const showDate = dateLabel(b.date);
   const theatre = findTheatre(b.theatreId);
   useEffect(() => {
     QRCode.toDataURL(`PICKMYSEAT|${ticket.id}|${b.seats.join(",")}`, { margin: 1, width: 220 }).then(setQr);

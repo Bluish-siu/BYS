@@ -5,10 +5,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { findTheatre, getMovie } from "@/lib/catalog";
 import { useCatalog } from "@/lib/use-catalog";
 import { KIND_COLOR, Layout } from "@/lib/layouts";
-import { getShows, soldSeatsFor } from "@/lib/shows";
+import { getShows, showIsOpen, soldSeatsFor } from "@/lib/shows";
+import ShowStarted from "@/components/ShowStarted";
+import { dateLabel } from "@/lib/dates";
 import { useStore } from "@/lib/store";
 import { fetchBookedSeats, showKeyOf } from "@/lib/api";
-import { dayLabel, layoutFor, seatsTotal, useHydrated } from "@/lib/pricing";
+import { layoutFor, seatsTotal, useHydrated, useNow } from "@/lib/pricing";
 import { newInput, type CamMode } from "@/components/SeatHall";
 import SeatMap from "@/components/SeatMap";
 
@@ -57,6 +59,7 @@ function bestsellers(layout: Layout) {
 export default function SeatsPage() {
   const ready = useHydrated();
   useCatalog();
+  useNow(); // re-check every half minute whether the show has started
   const router = useRouter();
   const { booking, patch } = useStore();
   const [view, setView] = useState<"map" | "3d">("map");
@@ -104,7 +107,8 @@ export default function SeatsPage() {
   if (!ready || !booking || !movie || !layout) return <p className="p-10 text-fg/60">Loading...</p>;
 
   const theatre = findTheatre(booking.theatreId);
-  const shows = getShows(booking.movieId, booking.city, booking.day).find((t) => t.theatre.id === booking.theatreId)?.shows ?? [];
+  if (!showIsOpen(booking)) return <ShowStarted movieId={booking.movieId} time={booking.time} />;
+  const shows = getShows(booking.movieId, booking.city, booking.date).find((t) => t.theatre.id === booking.theatreId)?.shows ?? [];
   const picked = booking.seats;
   const last = picked[picked.length - 1] ?? null;
   const lastRow = last ? layout.byId.get(last) : undefined;
@@ -138,7 +142,7 @@ export default function SeatsPage() {
         <button aria-label="Back" onClick={() => (view === "3d" ? setView("map") : router.push(`/movie/${movie.id}`))} className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-xl hover:bg-fg/10">‹</button>
         <div className="mr-auto min-w-0">
           <p className="truncate font-semibold">{movie.title} ({booking.format}) - {movie.lang}</p>
-          <p className="truncate text-xs text-fg/55">{theatre.name} | {dayLabel(booking.day)} | {booking.time}</p>
+          <p className="truncate text-xs text-fg/55">{theatre.name} | {dateLabel(booking.date, true)} | {booking.time}</p>
         </div>
         {view === "map" ? (
           <button onClick={() => enter3d("overview")} className="btn btn-ghost shrink-0 !px-3 !py-1.5 text-xs">View hall in 3D</button>

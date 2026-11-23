@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { createHmac } from "node:crypto";
 import { openDb } from "../src/db.js";
-import { createApp } from "../src/app.js";
+import { createApp, istDate } from "../src/app.js";
 import { verifySignature } from "../src/razorpay.js";
 
 const SECRET = "test_secret";
@@ -22,8 +22,8 @@ await new Promise((r) => server.listen(0, r));
 const base = `http://localhost:${server.address().port}/api`;
 const get = (p) => fetch(base + p).then(async (r) => [r.status, await r.json()]);
 const post = (p, b) => fetch(base + p, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(b) }).then(async (r) => [r.status, await r.json()]);
-const key = encodeURIComponent("ramayana|mum-icon-14:50|1");
-const booking = { movieId: "ramayana", theatreId: "mum-icon", city: "Mumbai", day: 1, showId: "mum-icon-14:50", time: "02:50 PM", format: "IMAX", seats: ["K10", "K11"], snacks: {}, total: 2430 };
+const key = encodeURIComponent(`ramayana|mum-icon-14:50|${istDate(1)}`);
+const booking = { movieId: "ramayana", theatreId: "mum-icon", city: "Mumbai", date: istDate(1), showId: "mum-icon-14:50", time: "02:50 PM", format: "IMAX", seats: ["K10", "K11"], snacks: {}, total: 2430 };
 
 test("config reports test mode", async () => {
   const [, cfg] = await get("/payments/config");

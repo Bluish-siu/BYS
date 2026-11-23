@@ -12,6 +12,7 @@
     "db:seed": "node database/generate-seed.mjs",
     "db:reset": "npm run db:reset --prefix backend",
     "db:pg": "node frontend/scripts/pg-setup.mjs",
-    "make-admin": "node frontend/scripts/make-admin.mjs"
+    "make-admin": "node frontend/scripts/make-admin.mjs",
+    "test:dates": "node --test frontend/scripts/dates.test.ts"
   }
 }

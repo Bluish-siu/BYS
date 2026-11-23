@@ -14,7 +14,12 @@ export function openDb(file = process.env.DB_PATH ?? "../database/pickmyseat.db"
   db.exec("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;");
   db.exec(readFileSync(path.join(databaseDir, "schema.sql"), "utf8"));
   // Databases created before payments existed: add the new booking columns.
-  const cols = new Set(db.prepare("PRAGMA table_info(bookings)").all().map((c) => c.name));
+  let cols = new Set(db.prepare("PRAGMA table_info(bookings)").all().map((c) => c.name));
+  // Databases from before shows had real dates stored "days from today" in a "day" column.
+  if (cols.has("day") && !cols.has("show_date")) {
+    db.exec("ALTER TABLE bookings RENAME COLUMN day TO show_date");
+    cols = new Set(db.prepare("PRAGMA table_info(bookings)").all().map((c) => c.name));
+  }
   for (const [name, type] of [["expires_at", "TEXT"], ["payment_order_id", "TEXT"], ["payment_id", "TEXT"]])
     if (!cols.has(name)) db.exec(`ALTER TABLE bookings ADD COLUMN ${name} ${type}`);
   db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_bookings_order ON bookings(payment_order_id)");

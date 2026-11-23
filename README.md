@@ -165,7 +165,8 @@ Seats are reserved in one database transaction, and `booked_seats` has a primary
 
 | Command | What it does |
 | --- | --- |
-| `npm test` | Runs the API tests |
+| `npm test` | Runs the offline backend's API tests |
+| `npm run test:dates` | Checks the show date and time rules (India time) |
 | `npm run build` | Production build of the frontend |
 | `npm run db:seed` | Regenerates `database/seed.sql` after editing movies or theatres |
 | `npm run db:reset` | Deletes the SQLite database and rebuilds it from the seed |
@@ -177,5 +178,6 @@ Seats are reserved in one database transaction, and `booked_seats` has a primary
 - Payments run only in Razorpay test mode. Without keys, payment is a demo screen. Nothing is ever charged.
 - The server recalculates every price from the theatre layout and snack menu. If the browser's total differs (for example, someone edited it), the order is refused.
 - Mobile numbers are not verified with an SMS code; that needs a paid SMS provider.
+- Show dates and times are India Standard Time on every phone and on the server. A show is stored by its real date (`movie|show|2026-11-25`), so a booking made tonight for tomorrow still holds its seats after midnight. Shows that have started disappear from the page and are refused by the server; tickets are on sale for today and the next four days.
 - Showtimes and the "already sold" seats are generated so every show looks busy. Real purchases from the backend are added on top.
 - Movie posters and trailers belong to their owners and are used for demo purposes only.

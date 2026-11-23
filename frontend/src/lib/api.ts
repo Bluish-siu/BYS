@@ -6,7 +6,8 @@ const API = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
 export const apiEnabled = Boolean(API);
 const PAY_API = API ?? "/api";
 
-export const showKeyOf = (b: Pick<Booking, "movieId" | "showId" | "day">) => `${b.movieId}|${b.showId}|${b.day}`;
+/** Identifies one screening: movie, show and its real date, e.g. ramayana|mum-icon-18:55|2026-11-24. */
+export const showKeyOf = (b: Pick<Booking, "movieId" | "showId" | "date">) => `${b.movieId}|${b.showId}|${b.date}`;
 
 /** Seats other customers have already bought, or are paying for, for this show. Empty if the API is down. */
 export async function fetchBookedSeats(showKey: string): Promise<string[]> {
@@ -27,7 +28,7 @@ export async function createBooking(b: Booking, total: number): Promise<CreateRe
     const r = await fetch(`${PAY_API}/bookings`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ movieId: b.movieId, theatreId: b.theatreId, city: b.city, day: b.day, showId: b.showId, time: b.time, format: b.format, seats: b.seats, snacks: b.snacks, total }),
+      body: JSON.stringify({ movieId: b.movieId, theatreId: b.theatreId, city: b.city, date: b.date, showId: b.showId, time: b.time, format: b.format, seats: b.seats, snacks: b.snacks, total }),
     });
     const data = await r.json();
     return r.ok ? { ok: true, id: data.id } : { ok: false, error: data.error ?? "Booking failed", taken: data.taken };
@@ -59,7 +60,7 @@ const post = async (path: string, body: unknown) => {
 /** Holds the seats on the server and opens a Razorpay order for the total. */
 export async function createPaymentOrder(b: Booking, total: number): Promise<{ ok: true; order: PaymentOrder } | { ok: false; error: string; taken?: string[] }> {
   try {
-    const { ok, data } = await post("/payments/order", { movieId: b.movieId, theatreId: b.theatreId, city: b.city, day: b.day, showId: b.showId, time: b.time, format: b.format, seats: b.seats, snacks: b.snacks, total });
+    const { ok, data } = await post("/payments/order", { movieId: b.movieId, theatreId: b.theatreId, city: b.city, date: b.date, showId: b.showId, time: b.time, format: b.format, seats: b.seats, snacks: b.snacks, total });
     return ok ? { ok: true, order: data } : { ok: false, error: data.error ?? "Couldn't start the payment", taken: data.taken };
   } catch {
     return { ok: false, error: "Can't reach the booking server. Please try again." };

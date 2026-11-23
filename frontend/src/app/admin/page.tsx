@@ -8,7 +8,7 @@ import { loadCatalog } from "@/lib/catalog";
 import { useCatalog } from "@/lib/use-catalog";
 import { useAccount } from "@/lib/auth";
 import { getLayout } from "@/lib/layouts";
-import { dayLabel } from "@/lib/pricing";
+import { bookableDates, dateLabel } from "@/lib/dates";
 import { getShows, showLabel, soldSeatsFor } from "@/lib/shows";
 
 type AdminMovie = Movie & { active: boolean; sort: number };
@@ -83,7 +83,7 @@ function Dashboard({ movies }: { movies: AdminMovie[] }) {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-        {[["Revenue", rupees(o.revenue)], ["Last 24 hours", rupees(o.today)], ["Bookings", o.bookings], ["Tickets sold", o.tickets], ["Customers", o.customers]].map(([l, v]) => (
+        {[["Revenue", rupees(o.revenue)], ["Today", rupees(o.today)], ["Bookings", o.bookings], ["Tickets sold", o.tickets], ["Customers", o.customers]].map(([l, v]) => (
           <div key={l} className="card p-4"><p className="text-xs uppercase tracking-wider text-fg/50">{l}</p><p className="mt-1 text-2xl font-black">{v}</p></div>
         ))}
       </div>
@@ -316,12 +316,13 @@ function BlockSeats({ data }: { data: AdminData }) {
   const live = data.movies.filter((m) => m.active);
   const [movieId, setMovieId] = useState(live[0]?.id ?? "");
   const [theatreId, setTheatreId] = useState(data.theatres.find((t) => t.active)?.id ?? "");
-  const [day, setDay] = useState(0);
+  const dates = bookableDates();
+  const [date, setDate] = useState(dates[0]);
   const theatre = data.theatres.find((t) => t.id === theatreId);
-  const shows = useMemo(() => (theatre ? getShows(movieId, theatre.city, day).find((t) => t.theatre.id === theatreId)?.shows ?? [] : []), [movieId, theatre, theatreId, day]);
+  const shows = useMemo(() => (theatre ? getShows(movieId, theatre.city, date).find((t) => t.theatre.id === theatreId)?.shows ?? [] : []), [movieId, theatre, theatreId, date]);
   const [showId, setShowId] = useState("");
   const show = shows.find((s) => s.id === showId) ?? shows[0];
-  const showKey = show ? `${movieId}|${show.id}|${day}` : "";
+  const showKey = show ? `${movieId}|${show.id}|${date}` : "";
   const [booked, setBooked] = useState<string[]>([]);
   const [blocks, setBlocks] = useState<{ id: string; seats: string[] }[]>([]);
   const [picked, setPicked] = useState<string[]>([]);
@@ -339,7 +340,7 @@ function BlockSeats({ data }: { data: AdminData }) {
   const block = async () => {
     setMsg("");
     try {
-      await api("/api/admin/blocks", "POST", { movieId, theatreId, day, showId: show!.id, seats: picked });
+      await api("/api/admin/blocks", "POST", { movieId, theatreId, date, showId: show!.id, seats: picked });
       setMsg(`Blocked ${picked.join(", ")}`); setPicked([]); refresh();
     } catch (e) { setMsg((e as Error).message); }
   };
@@ -352,8 +353,8 @@ function BlockSeats({ data }: { data: AdminData }) {
         <label className="text-sm"><span className="mb-1 block font-semibold">Theatre</span>
           <select value={theatreId} onChange={(e) => setTheatreId(e.target.value)} className="input">
             {data.theatres.filter((t) => t.active).map((t) => <option key={t.id} value={t.id}>{t.city}: {t.name}</option>)}</select></label>
-        <label className="text-sm"><span className="mb-1 block font-semibold">Day</span>
-          <select value={day} onChange={(e) => setDay(Number(e.target.value))} className="input">{[0, 1, 2, 3, 4].map((d) => <option key={d} value={d}>{dayLabel(d)}</option>)}</select></label>
+        <label className="text-sm"><span className="mb-1 block font-semibold">Date</span>
+          <select value={date} onChange={(e) => setDate(e.target.value)} className="input">{dates.map((d) => <option key={d} value={d}>{dateLabel(d, true)}</option>)}</select></label>
         <label className="text-sm"><span className="mb-1 block font-semibold">Show</span>
           <select value={show?.id ?? ""} onChange={(e) => setShowId(e.target.value)} className="input">{shows.map((s) => <option key={s.id} value={s.id}>{s.time} · {s.format}</option>)}</select></label>
       </div>

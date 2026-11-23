@@ -3,8 +3,18 @@ import { randomBytes } from "node:crypto";
 
 const MAX_SEATS = 10;
 const HOLD_MINUTES = 10; // how long seats are held while the customer pays
+const BOOKING_DAYS = 5;  // today + 4, like the website
 
-export function createApp(db, { corsOrigin = "*", razorpay = null } = {}) {
+// Dates and times are India Standard Time (UTC+5:30), whatever the server's own time zone is.
+const IST_MS = 330 * 60_000;
+export const istDate = (plus = 0, now = Date.now()) => {
+  const d = new Date(now + IST_MS);
+  d.setUTCDate(d.getUTCDate() + plus);
+  return d.toISOString().slice(0, 10);
+};
+const istMinutes = (now = Date.now()) => { const d = new Date(now + IST_MS); return d.getUTCHours() * 60 + d.getUTCMinutes(); };
+
+export function createApp(db, { corsOrigin = "*", razorpay = null, now = () => Date.now() } = {}) {
   const q = {
     movies: db.prepare("SELECT * FROM movies ORDER BY rowid"),
     movie: db.prepare("SELECT * FROM movies WHERE id = ?"),
@@ -14,7 +24,7 @@ export function createApp(db, { corsOrigin = "*", razorpay = null } = {}) {
     snacks: db.prepare("SELECT * FROM snacks ORDER BY rowid"),
     booked: db.prepare("SELECT seat_id FROM booked_seats WHERE show_key = ?"),
     taken: db.prepare("SELECT seat_id FROM booked_seats WHERE show_key = ? AND seat_id = ?"),
-    insertBooking: db.prepare(`INSERT INTO bookings (id, movie_id, theatre_id, city, day, show_id, show_key, show_time, format, seats, snacks, total, status, expires_at)
+    insertBooking: db.prepare(`INSERT INTO bookings (id, movie_id, theatre_id, city, show_date, show_id, show_key, show_time, format, seats, snacks, total, status, expires_at)
                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`),
     insertSeat: db.prepare("INSERT INTO booked_seats (show_key, seat_id, booking_id) VALUES (?, ?, ?)"),
     booking: db.prepare("SELECT * FROM bookings WHERE id = ?"),
@@ -29,13 +39,18 @@ export function createApp(db, { corsOrigin = "*", razorpay = null } = {}) {
   const bookingOut = (b) => ({ ...b, seats: JSON.parse(b.seats), snacks: JSON.parse(b.snacks) });
 
   function validate(body) {
-    const { movieId, theatreId, day, showId, seats, total } = body ?? {};
+    const { movieId, theatreId, date, showId, seats, total } = body ?? {};
     if (!q.movie.get(movieId ?? "")) return "Unknown movie";
     if (!q.theatre.get(theatreId ?? "")) return "Unknown theatre";
     if (!Array.isArray(seats) || seats.length < 1 || seats.length > MAX_SEATS || !seats.every((s) => typeof s === "string" && /^[A-Z]{1,2}\d{1,3}$/.test(s)))
       return `Choose between 1 and ${MAX_SEATS} valid seats`;
     if (new Set(seats).size !== seats.length) return "Duplicate seats";
-    if (!Number.isInteger(day) || day < 0 || day > 6 || typeof showId !== "string" || !showId) return "Invalid show";
+    if (typeof showId !== "string" || !showId) return "Invalid show";
+    // Shows are identified by their real date, so a booking still matches its show after midnight.
+    const t = now();
+    if (typeof date !== "string" || !Array.from({ length: BOOKING_DAYS }, (_, i) => istDate(i, t)).includes(date)) return "Tickets for this date aren't on sale";
+    const start = showId.match(/(\d{2}):(\d{2})$/); // generated show ids end in the 24-hour start time
+    if (start && date === istDate(0, t) && Number(start[1]) * 60 + Number(start[2]) <= istMinutes(t)) return "This show has already started";
     if (!Number.isInteger(total) || total <= 0 || total > 500_000) return "Invalid total";
     return null;
   }
@@ -44,15 +59,15 @@ export function createApp(db, { corsOrigin = "*", razorpay = null } = {}) {
   function reserve(body, status) {
     const err = validate(body);
     if (err) return [400, { error: err }];
-    const { movieId, theatreId, city, day, showId, time, format, seats, snacks = {}, total } = body;
-    const showKey = `${movieId}|${showId}|${day}`;
+    const { movieId, theatreId, city, date, showId, time, format, seats, snacks = {}, total } = body;
+    const showKey = `${movieId}|${showId}|${date}`;
     const id = "PMS" + randomBytes(4).toString("hex").toUpperCase();
     const expires = status === "pending" ? new Date(Date.now() + HOLD_MINUTES * 60_000).toISOString().replace("T", " ").slice(0, 19) : null;
     db.exec("BEGIN IMMEDIATE");
     try {
       const clash = seats.filter((s) => q.taken.get(showKey, s));
       if (clash.length) { db.exec("ROLLBACK"); return [409, { error: "Some seats were just booked by someone else", taken: clash }]; }
-      q.insertBooking.run(id, movieId, theatreId, String(city ?? ""), day, showId, showKey, String(time ?? ""), String(format ?? ""), JSON.stringify(seats), JSON.stringify(snacks), total, status, expires);
+      q.insertBooking.run(id, movieId, theatreId, String(city ?? ""), date, showId, showKey, String(time ?? ""), String(format ?? ""), JSON.stringify(seats), JSON.stringify(snacks), total, status, expires);
       for (const s of seats) q.insertSeat.run(showKey, s, id);
       db.exec("COMMIT");
     } catch (e) {

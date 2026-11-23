@@ -42,9 +42,9 @@ CREATE TABLE IF NOT EXISTS bookings (
   movie_id    TEXT NOT NULL REFERENCES movies(id),
   theatre_id  TEXT NOT NULL REFERENCES theatres(id),
   city        TEXT NOT NULL,
-  day         INTEGER NOT NULL,                -- 0 = today, 1 = tomorrow ...
+  show_date   TEXT NOT NULL,                   -- the screening's real date, YYYY-MM-DD (India time)
   show_id     TEXT NOT NULL,
-  show_key    TEXT NOT NULL,                   -- movie|show|day, identifies one screening
+  show_key    TEXT NOT NULL,                   -- movie|show|date, identifies one screening
   show_time   TEXT NOT NULL,
   format      TEXT NOT NULL,
   seats       TEXT NOT NULL,                   -- JSON array of seat ids

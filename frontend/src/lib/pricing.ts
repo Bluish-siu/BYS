@@ -9,8 +9,12 @@ export function useHydrated() {
   return ok;
 }
 
-export const dayLabel = (offset: number) => {
-  const d = new Date();
-  d.setDate(d.getDate() + offset);
-  return d.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" });
-};
+/** The current time, updated every minute, so showtimes that start drop off the page on their own. */
+export function useNow() {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(t);
+  }, []);
+  return now;
+}

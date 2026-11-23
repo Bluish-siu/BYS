@@ -7,9 +7,9 @@ CREATE TABLE IF NOT EXISTS bookings (
   movie_id         TEXT NOT NULL,
   theatre_id       TEXT NOT NULL,
   city             TEXT NOT NULL DEFAULT '',
-  day              SMALLINT NOT NULL CHECK (day BETWEEN 0 AND 6),
+  show_date        DATE,                             -- the screening's real date (India time)
   show_id          TEXT NOT NULL,
-  show_key         TEXT NOT NULL,                    -- movieId|showId|day
+  show_key         TEXT NOT NULL,                    -- movieId|showId|YYYY-MM-DD
   show_time        TEXT NOT NULL DEFAULT '',
   format           TEXT NOT NULL DEFAULT '',
   seats            JSONB NOT NULL,
@@ -113,3 +113,14 @@ ALTER TABLE movies ENABLE ROW LEVEL SECURITY;
 ALTER TABLE theatres ENABLE ROW LEVEL SECURITY;
 ALTER TABLE shows ENABLE ROW LEVEL SECURITY;
 ALTER TABLE reviews ENABLE ROW LEVEL SECURITY;
+
+-- ---------- Real show dates ----------
+-- Shows used to be stored as "days from today" (day 0-6), which pointed at a different show after midnight.
+-- They are now stored by their real date. The old column is kept, unused, so older copies still load.
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS show_date DATE;
+ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_day_check;
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'bookings' AND column_name = 'day') THEN
+    ALTER TABLE bookings ALTER COLUMN day DROP NOT NULL;
+  END IF;
+END $$;

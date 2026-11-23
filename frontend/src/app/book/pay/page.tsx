@@ -11,7 +11,10 @@ import {
   apiEnabled, cancelPayment, createBooking, createPaymentOrder, fetchPaymentConfig, loadRazorpay, verifyPayment,
   type PaymentConfig, type RazorpayResult,
 } from "@/lib/api";
-import { FEE, dayLabel, grandTotal, seatsTotal, useHydrated } from "@/lib/pricing";
+import { FEE, grandTotal, seatsTotal, useHydrated, useNow } from "@/lib/pricing";
+import { dateLabel } from "@/lib/dates";
+import { showIsOpen } from "@/lib/shows";
+import ShowStarted from "@/components/ShowStarted";
 
 type RazorpayInstance = { open: () => void; on: (event: string, cb: (r: { error: { description: string } }) => void) => void };
 type RazorpayCtor = new (options: Record<string, unknown>) => RazorpayInstance;
@@ -27,6 +30,7 @@ export default function PayPage() {
   const [checked, setChecked] = useState(false);
   const done = useRef(false);
   useCatalog();
+  useNow(); // re-check every half minute whether the show has started
   const account = useAccount();
 
   useEffect(() => { if (ready && !paying && !done.current && (!booking || !booking.seats.length)) router.replace("/"); }, [ready, paying, booking, router]);
@@ -35,6 +39,7 @@ export default function PayPage() {
   }, []);
   if (!ready || !booking) return <p className="p-10 text-fg/60">Loading...</p>;
 
+  if (!paying && !done.current && !showIsOpen(booking)) return <ShowStarted movieId={booking.movieId} time={booking.time} />;
   const movie = getMovie(booking.movieId) ?? allMovies()[0];
   // With a database, tickets are saved to an account, so paying needs a signed-in customer.
   const needsSignIn = Boolean(config?.database) && account.loaded && !account.user;
@@ -111,7 +116,7 @@ export default function PayPage() {
       </div>
       <div className="card space-y-2 p-5 text-sm">
         <p className="text-lg font-bold">{movie.title}</p>
-        <p className="text-fg/60">{theatre.name} · {booking.city} · {dayLabel(booking.day)} · {booking.time} · {booking.format}</p>
+        <p className="text-fg/60">{theatre.name} · {booking.city} · {dateLabel(booking.date, true)} · {booking.time} · {booking.format}</p>
         <hr className="border-fg/10" />
         <Row l={`Seats ${booking.seats.join(", ")}`} r={`₹${seatsTotal(booking)}`} />
         {Object.entries(booking.snacks).map(([id, q]) => {

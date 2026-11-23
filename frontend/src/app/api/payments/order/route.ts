@@ -30,7 +30,7 @@ export async function POST(req: Request) {
       amount: b.total * 100, // paise, from the server's own price calculation
       currency: "INR",
       receipt: bookingId,
-      notes: { booking: bookingId, movie: b.movieId, theatre: findTheatre(b.theatreId).name, show: `${b.showId} day ${b.day}`, seats: b.seats.join(" ") },
+      notes: { booking: bookingId, movie: b.movieId, theatre: findTheatre(b.theatreId).name, show: `${b.time} on ${b.date}`, seats: b.seats.join(" ") },
     });
     if (sql) await sql`UPDATE bookings SET payment_order_id = ${order.id} WHERE id = ${bookingId}`;
     return Response.json({ bookingId, orderId: order.id, amount: order.amount, currency: order.currency, keyId: keys.keyId, holdMinutes: HOLD_MINUTES }, { status: 201 });

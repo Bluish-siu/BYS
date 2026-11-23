@@ -6,6 +6,7 @@ import { findTheatre, getMovie, theatreExists } from "./catalog";
 import { dbCatalog } from "./catalog-server";
 import { grandTotal, layoutFor } from "./price";
 import { getShows, soldSeatsFor } from "./shows";
+import { bookableDates, isDate } from "./dates";
 import type { sql as Db } from "./db";
 
 type Sql = NonNullable<typeof Db>;
@@ -13,40 +14,45 @@ export const HOLD_MINUTES = 10;
 const MAX_SEATS = 10;
 
 export type BookingInput = {
-  movieId: string; theatreId: string; city: string; day: number; showId: string; time: string; format: string;
+  movieId: string; theatreId: string; city: string; date: string; showId: string; time: string; format: string;
   seats: string[]; snacks: Record<string, number>; total: number;
 };
 
 export const newBookingId = (prefix = "PMS") => prefix + randomBytes(4).toString("hex").toUpperCase();
-export const showKeyOf = (b: Pick<BookingInput, "movieId" | "showId" | "day">) => `${b.movieId}|${b.showId}|${b.day}`;
+export const showKeyOf = (b: Pick<BookingInput, "movieId" | "showId" | "date">) => `${b.movieId}|${b.showId}|${b.date}`;
 
 type Bad = { ok: false; status: number; error: string; taken?: string[] };
 const bad = (error: string, status = 400): Bad => ({ ok: false, status, error });
 
 /** Finds the show on the server, so the time, format and city come from the catalogue rather than the browser. */
-export async function findShow(movieId: unknown, theatreId: unknown, day: unknown, showId: unknown) {
+export async function findShow(movieId: unknown, theatreId: unknown, date: unknown, showId: unknown) {
   await dbCatalog(); // makes the database catalogue the current one
   if (typeof movieId !== "string" || !getMovie(movieId)) return bad("Unknown movie");
   if (typeof theatreId !== "string" || !theatreExists(theatreId)) return bad("Unknown theatre");
-  if (!Number.isInteger(day) || (day as number) < 0 || (day as number) > 6) return bad("Invalid day");
+  if (!isDate(date)) return bad("Invalid date");
+  // Only today and the next few days (India time) are on sale.
+  if (!bookableDates().includes(date)) return bad("Tickets for this date aren't on sale. Please choose another day.", 409);
   const theatre = findTheatre(theatreId);
-  const show = getShows(movieId, theatre.city, day as number).find((t) => t.theatre.id === theatreId)?.shows.find((s) => s.id === showId);
+  const all = getShows(movieId, theatre.city, date, { includeStarted: true }).find((t) => t.theatre.id === theatreId)?.shows ?? [];
+  const show = all.find((s) => s.id === showId);
   if (!show) return bad("This show is no longer available. Please choose another showtime.", 409);
-  return { ok: true as const, theatre, show, day: day as number, movieId };
+  const upcoming = getShows(movieId, theatre.city, date).find((t) => t.theatre.id === theatreId)?.shows ?? [];
+  if (!upcoming.some((s) => s.id === showId)) return bad(`The ${show.time} show has already started. Please choose a later show.`, 409);
+  return { ok: true as const, theatre, show, date, movieId };
 }
 
 /** Returns the clean booking, or an error message. The price is recalculated here and must match what the customer saw. */
 export async function checkBooking(body: unknown): Promise<{ ok: true; b: BookingInput } | Bad> {
   const r = (body ?? {}) as Partial<BookingInput>;
-  const found = await findShow(r.movieId, r.theatreId, r.day, r.showId);
+  const found = await findShow(r.movieId, r.theatreId, r.date, r.showId);
   if (!found.ok) return found;
-  const { theatre, show, day, movieId } = found;
+  const { theatre, show, date, movieId } = found;
   const seats = r.seats;
   if (!Array.isArray(seats) || seats.length < 1 || seats.length > MAX_SEATS) return bad(`Choose between 1 and ${MAX_SEATS} seats`);
   if (new Set(seats).size !== seats.length) return bad("Duplicate seats");
   const layout = layoutFor({ theatreId: theatre.id });
   if (!seats.every((s) => typeof s === "string" && layout.byId.has(s))) return bad("Some seats don't exist in this theatre");
-  const showKey = showKeyOf({ movieId, showId: show.id, day });
+  const showKey = showKeyOf({ movieId, showId: show.id, date });
   const soldOut = soldSeatsFor(showKey, show.fill, layout.seatIds);
   const gone = seats.filter((s) => soldOut.has(s));
   if (gone.length) return { ok: false, status: 409, error: `Seat ${gone.join(", ")} is already sold`, taken: gone };
@@ -55,7 +61,7 @@ export async function checkBooking(body: unknown): Promise<{ ok: true; b: Bookin
     if (!menu.some((m) => m.id === id) || !Number.isInteger(q) || q < 0 || q > 20) return bad("Invalid snacks");
     if (q > 0) snacks[id] = q;
   }
-  const b: BookingInput = { movieId, theatreId: theatre.id, city: theatre.city, day, showId: show.id, time: show.time, format: show.format, seats, snacks, total: 0 };
+  const b: BookingInput = { movieId, theatreId: theatre.id, city: theatre.city, date, showId: show.id, time: show.time, format: show.format, seats, snacks, total: 0 };
   b.total = grandTotal(b);
   // The browser shows a total too. If it differs, someone changed the price in the browser, or prices changed meanwhile.
   if (r.total !== b.total) return bad(`The price has changed to ₹${b.total}. Please review your booking.`, 409);
@@ -82,8 +88,8 @@ export async function reserve(sql: Sql, b: BookingInput, status: Status, userId:
     // If two customers race for a seat, Postgres makes the second wait for the first, then refuses it.
     await sql`
       WITH booking AS (
-        INSERT INTO bookings (id, movie_id, theatre_id, city, day, show_id, show_key, show_time, format, seats, snacks, total, status, user_id, expires_at)
-        VALUES (${id}, ${b.movieId}, ${b.theatreId}, ${b.city}, ${b.day}, ${b.showId}, ${showKey}, ${b.time}, ${b.format},
+        INSERT INTO bookings (id, movie_id, theatre_id, city, show_date, show_id, show_key, show_time, format, seats, snacks, total, status, user_id, expires_at)
+        VALUES (${id}, ${b.movieId}, ${b.theatreId}, ${b.city}, ${b.date}::date, ${b.showId}, ${showKey}, ${b.time}, ${b.format},
                 ${sql.json(b.seats)}, ${sql.json(b.snacks)}, ${b.total}, ${status}, ${userId},
                 now() + make_interval(mins => ${holdMinutes}::int))
         RETURNING id
@@ -105,10 +111,10 @@ export const takenResponse = (taken: string[]) =>
 
 /** A booking row as the ticket pages use it. */
 export type TicketRow = {
-  id: string; movie_id: string; theatre_id: string; city: string; day: number; show_id: string; show_time: string; format: string;
+  id: string; movie_id: string; theatre_id: string; city: string; show_date: string | Date; show_id: string; show_time: string; format: string;
   seats: string[]; snacks: Record<string, number>; total: number; payment_id: string | null; created_at: Date;
 };
 export const ticketOut = (r: TicketRow) => ({
   id: r.id, total: r.total, at: new Date(r.created_at).getTime(), paymentId: r.payment_id ?? undefined,
-  booking: { movieId: r.movie_id, city: r.city, day: r.day, theatreId: r.theatre_id, showId: r.show_id, time: r.show_time, format: r.format, fill: 0, seats: r.seats, snacks: r.snacks },
+  booking: { movieId: r.movie_id, city: r.city, date: new Date(r.show_date).toISOString().slice(0, 10), theatreId: r.theatre_id, showId: r.show_id, time: r.show_time, format: r.format, fill: 0, seats: r.seats, snacks: r.snacks },
 });

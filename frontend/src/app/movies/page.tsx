@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import MovieCard from "@/components/MovieCard";
 import { useCatalog } from "@/lib/use-catalog";
 import { getShows } from "@/lib/shows";
+import { bookableDates } from "@/lib/dates";
 import { useStore } from "@/lib/store";
 import { useHydrated } from "@/lib/pricing";
 
@@ -24,7 +25,7 @@ export default function MoviesPage() {
     const out = new Map<string, Set<string>>();
     for (const m of cat.movies) {
       const set = new Set<string>();
-      for (let d = 0; d < 5; d++) for (const t of getShows(m.id, cityName, d)) for (const s of t.shows) set.add(s.format);
+      for (const d of bookableDates()) for (const t of getShows(m.id, cityName, d)) for (const s of t.shows) set.add(s.format);
       out.set(m.id, set);
     }
     return out;

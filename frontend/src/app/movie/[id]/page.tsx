@@ -6,20 +6,26 @@ import { getMovie } from "@/lib/catalog";
 import { useCatalog } from "@/lib/use-catalog";
 import { getShows } from "@/lib/shows";
 import { useStore } from "@/lib/store";
-import { dayLabel, useHydrated } from "@/lib/pricing";
+import { useHydrated, useNow } from "@/lib/pricing";
+import { bookableDates, dateLabel } from "@/lib/dates";
 
 export default function MoviePage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const ready = useHydrated();
   const { city, setBooking } = useStore();
-  const [day, setDay] = useState(0);
+  const [picked, setPicked] = useState<string | null>(null);
+  const now = useNow();
   const cat = useCatalog();
   const movie = getMovie(id);
   if (!movie) return <p className="p-10">{cat.live ? "Movie not found." : "Loading..."}</p>;
   const audience = cat.ratings[movie.id];
   const cityName = ready ? city : "Mumbai";
-  const board = getShows(movie.id, cityName, day);
+  const dates = bookableDates(now);
+  const hasShows = (d: string) => getShows(movie.id, cityName, d).some((t) => t.shows.length);
+  // Late at night today may have no shows left: open on the first date that still has some.
+  const date = picked && dates.includes(picked) ? picked : dates.find(hasShows) ?? dates[0];
+  const board = getShows(movie.id, cityName, date);
 
   return (
     <div>
@@ -47,8 +53,8 @@ export default function MoviePage() {
       <section className="mx-auto max-w-4xl px-4 py-8">
         <h2 className="mb-4 text-2xl font-bold">Theatres in {cityName}</h2>
         <div className="mb-6 flex gap-2 overflow-x-auto pb-1">
-          {[0, 1, 2, 3, 4].map((d) => (
-            <button key={d} onClick={() => setDay(d)} className={`btn shrink-0 !py-2 text-sm ${day === d ? "btn-brand" : "btn-ghost"}`}>{dayLabel(d)}</button>
+          {dates.map((d) => (
+            <button key={d} onClick={() => setPicked(d)} className={`btn shrink-0 !py-2 text-sm ${date === d ? "btn-brand" : "btn-ghost"}`}>{dateLabel(d, true, now)}</button>
           ))}
         </div>
         <div className="space-y-4">
@@ -59,11 +65,12 @@ export default function MoviePage() {
                 <span className="text-xs text-fg/50">{theatre.km} km away</span>
               </div>
               <div className="flex flex-wrap gap-2">
+                {!shows.length && <p className="text-sm text-fg/50">No more shows today. Pick another date.</p>}
                 {shows.map((s) => {
                   const nearlyFull = s.fill > 0.75;
                   return (
                     <button key={s.id}
-                      onClick={() => { setBooking({ movieId: movie.id, city: cityName, day, theatreId: theatre.id, showId: s.id, time: s.time, format: s.format, fill: s.fill, seats: [], snacks: {} }); router.push("/book/seats"); }}
+                      onClick={() => { setBooking({ movieId: movie.id, city: cityName, date, theatreId: theatre.id, showId: s.id, time: s.time, format: s.format, fill: s.fill, seats: [], snacks: {} }); router.push("/book/seats"); }}
                       className={`rounded-lg border px-3 py-2 text-sm transition hover:scale-105 ${nearlyFull ? "border-gold/60 font-semibold text-gold hover:bg-gold/10" : "border-fg/25 font-semibold text-fg hover:border-fg hover:bg-fg/5"}`}>
                       <div className="font-semibold">{s.time}</div>
                       <div className="text-[10px] text-fg/50">{s.format}{nearlyFull ? " · filling fast" : ""}</div>
