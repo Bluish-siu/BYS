@@ -5,11 +5,13 @@ import { MutableRefObject, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as THREE from "three";
-import { movies } from "@/lib/data";
+import type { Movie } from "@/lib/data";
+import { useCatalog } from "@/lib/use-catalog";
 import { makeBannerTexture } from "./PosterTexture";
 
-const featured = movies.slice(0, 6);
-const N = featured.length;
+// The ring always has six screens: the first six movies, repeated if there are fewer.
+const N = 6;
+const pickFeatured = (list: Movie[]) => Array.from({ length: N }, (_, i) => list[i % Math.max(1, list.length)]);
 const STEP = (Math.PI * 2) / N;
 const R = 6;                 // ring radius: the camera stands at the centre, inside the ring
 const SCREEN_ARC = STEP * 0.94;
@@ -45,7 +47,7 @@ function glowTexture() {
 
 const ease = (t: number) => 1 - Math.pow(1 - t, 4);
 
-function Ring({ onFront, api }: { onFront: (i: number) => void; api: MutableRefObject<HeroApi | null> }) {
+function Ring({ featured, onFront, api }: { featured: Movie[]; onFront: (i: number) => void; api: MutableRefObject<HeroApi | null> }) {
   const router = useRouter();
   const { gl, camera, size } = useThree();
   const ring = useRef<THREE.Group>(null!);
@@ -59,7 +61,7 @@ function Ring({ onFront, api }: { onFront: (i: number) => void; api: MutableRefO
   const lastFront = useRef(-1);
   const born = useRef<number | null>(null);
   const pointer = useRef({ x: 0, y: 0 });
-  const textures = useMemo(() => featured.map(makeBannerTexture), []);
+  const textures = useMemo(() => featured.map(makeBannerTexture), [featured]);
   const screenGeo = useMemo(() => curvedPlane(SCREEN_W, SCREEN_H, R), []);
   // The halo sits well behind the screen: the front screen scales up 6% about the ring centre and must stay in front of it.
   const glowGeo = useMemo(() => curvedPlane(SCREEN_W * 1.35, SCREEN_H * 1.7, R + 1), []);
@@ -201,7 +203,9 @@ export default function Hero() {
   // touch devices and narrow screens get fewer particles, no mirror floor and a lower pixel ratio
   const [low] = useState(() => typeof window !== "undefined" && (window.matchMedia("(pointer: coarse)").matches || window.innerWidth < 768));
   const api = useRef<HeroApi | null>(null);
-  const m = featured[front];
+  const cat = useCatalog();
+  const featured = useMemo(() => pickFeatured(cat.movies), [cat.movies]);
+  const m = featured[front] ?? featured[0];
   return (
     <section
       className="on-dark relative h-[calc(100svh-57px)] min-h-[560px] w-full select-none overflow-hidden bg-ink text-white"
@@ -212,7 +216,7 @@ export default function Hero() {
         <ambientLight intensity={0.6} />
         <Stars radius={70} depth={40} count={low ? 1200 : 3500} factor={3} fade speed={0.6} />
         <Sparkles count={low ? 40 : 120} scale={[16, 7, 16]} size={2.2} speed={0.35} opacity={0.6} color="#ffe6c4" />
-        <Ring onFront={setFront} api={api} />
+        <Ring key={featured.map((f) => f.id).join()} featured={featured} onFront={setFront} api={api} />
         <Floor low={low} />
       </Canvas>
 

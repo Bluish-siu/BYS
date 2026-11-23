@@ -2,7 +2,8 @@
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { findTheatre, getMovie } from "@/lib/data";
+import { findTheatre, getMovie } from "@/lib/catalog";
+import { useCatalog } from "@/lib/use-catalog";
 import { KIND_COLOR, Layout } from "@/lib/layouts";
 import { getShows, soldSeatsFor } from "@/lib/shows";
 import { useStore } from "@/lib/store";
@@ -55,6 +56,7 @@ function bestsellers(layout: Layout) {
 
 export default function SeatsPage() {
   const ready = useHydrated();
+  useCatalog();
   const router = useRouter();
   const { booking, patch } = useStore();
   const [view, setView] = useState<"map" | "3d">("map");

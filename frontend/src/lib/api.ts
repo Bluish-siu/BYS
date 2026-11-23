@@ -1,19 +1,17 @@
-// Talks to the PickMySeat backend (backend/). Set NEXT_PUBLIC_API_URL, e.g. http://localhost:4000/api.
-// Without it the site runs on its own (demo mode): seats and tickets live only in this browser.
+// Talks to the booking API: the website's own /api routes (Postgres on Supabase, as on Vercel),
+// or the separate backend/ server when NEXT_PUBLIC_API_URL is set, e.g. http://localhost:4000/api.
 import type { Booking } from "./store";
 
 const API = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
 export const apiEnabled = Boolean(API);
-// Payments use the separate backend when it is set, otherwise the website's own /api routes (as on Vercel).
 const PAY_API = API ?? "/api";
 
 export const showKeyOf = (b: Pick<Booking, "movieId" | "showId" | "day">) => `${b.movieId}|${b.showId}|${b.day}`;
 
-/** Seats other customers have already bought for this show. Empty in demo mode or if the API is down. */
+/** Seats other customers have already bought, or are paying for, for this show. Empty if the API is down. */
 export async function fetchBookedSeats(showKey: string): Promise<string[]> {
-  if (!API) return [];
   try {
-    const r = await fetch(`${API}/shows/${encodeURIComponent(showKey)}/booked-seats`, { cache: "no-store" });
+    const r = await fetch(`${PAY_API}/shows/${encodeURIComponent(showKey)}/booked-seats`, { cache: "no-store" });
     if (!r.ok) return [];
     return ((await r.json()) as { seats: string[] }).seats;
   } catch {
@@ -26,7 +24,7 @@ export type CreateResult = { ok: true; id: string } | { ok: false; error: string
 /** Saves the booking on the server, which reserves the seats or refuses if any were just taken. */
 export async function createBooking(b: Booking, total: number): Promise<CreateResult> {
   try {
-    const r = await fetch(`${API}/bookings`, {
+    const r = await fetch(`${PAY_API}/bookings`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ movieId: b.movieId, theatreId: b.theatreId, city: b.city, day: b.day, showId: b.showId, time: b.time, format: b.format, seats: b.seats, snacks: b.snacks, total }),
@@ -40,7 +38,7 @@ export async function createBooking(b: Booking, total: number): Promise<CreateRe
 
 // ---------- Razorpay (test mode) ----------
 
-export type PaymentConfig = { razorpay: boolean; keyId: string | null; mode: "test" | "off" };
+export type PaymentConfig = { razorpay: boolean; keyId: string | null; mode: "test" | "off"; database?: boolean };
 
 export async function fetchPaymentConfig(): Promise<PaymentConfig | null> {
   try {

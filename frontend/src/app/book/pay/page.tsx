@@ -1,7 +1,11 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { getMovie, movies, snacks, findTheatre } from "@/lib/data";
+import Link from "next/link";
+import { snacks } from "@/lib/data";
+import { allMovies, findTheatre, getMovie } from "@/lib/catalog";
+import { useCatalog } from "@/lib/use-catalog";
+import { useAccount } from "@/lib/auth";
 import { useStore } from "@/lib/store";
 import {
   apiEnabled, cancelPayment, createBooking, createPaymentOrder, fetchPaymentConfig, loadRazorpay, verifyPayment,
@@ -22,6 +26,8 @@ export default function PayPage() {
   const [config, setConfig] = useState<PaymentConfig | null>(null);
   const [checked, setChecked] = useState(false);
   const done = useRef(false);
+  useCatalog();
+  const account = useAccount();
 
   useEffect(() => { if (ready && !paying && !done.current && (!booking || !booking.seats.length)) router.replace("/"); }, [ready, paying, booking, router]);
   useEffect(() => {
@@ -29,7 +35,9 @@ export default function PayPage() {
   }, []);
   if (!ready || !booking) return <p className="p-10 text-fg/60">Loading...</p>;
 
-  const movie = getMovie(booking.movieId) ?? movies[0];
+  const movie = getMovie(booking.movieId) ?? allMovies()[0];
+  // With a database, tickets are saved to an account, so paying needs a signed-in customer.
+  const needsSignIn = Boolean(config?.database) && account.loaded && !account.user;
   const theatre = findTheatre(booking.theatreId);
   const total = grandTotal(booking);
   const razorpayOn = Boolean(config?.razorpay);
@@ -89,7 +97,7 @@ export default function PayPage() {
     if (razorpayOn) return payWithRazorpay();
     // Demo payment: no real charge. With a backend, the server reserves the seats and issues the ticket id.
     await new Promise((r) => setTimeout(r, 800));
-    if (!apiEnabled) return issue("PMS" + Math.random().toString(36).slice(2, 10).toUpperCase());
+    if (!apiEnabled && !config?.database) return issue("PMS" + Math.random().toString(36).slice(2, 10).toUpperCase());
     const res = await createBooking(booking, total);
     if (res.ok) return issue(res.id);
     fail(seatsTaken(res.taken) || res.error);
@@ -151,10 +159,15 @@ export default function PayPage() {
 
       <div className="mt-6 flex gap-2">
         <button className="btn btn-ghost" onClick={() => router.push("/book/snacks")}>Back</button>
-        <button disabled={paying || !checked} className="btn btn-brand flex-1 disabled:opacity-60" onClick={pay}>
-          {paying ? (razorpayOn ? "Waiting for payment..." : "Processing...") : `Pay ₹${total}`}
-        </button>
+        {needsSignIn ? (
+          <Link href="/login?next=/book/pay" className="btn btn-brand flex-1">Sign in to pay ₹{total}</Link>
+        ) : (
+          <button disabled={paying || !checked || (Boolean(config?.database) && !account.loaded)} className="btn btn-brand flex-1 disabled:opacity-60" onClick={pay}>
+            {paying ? (razorpayOn ? "Waiting for payment..." : "Processing...") : `Pay ₹${total}`}
+          </button>
+        )}
       </div>
+      {needsSignIn && <p className="mt-2 text-center text-xs text-fg/50">Your seats and snacks stay selected while you sign in.</p>}
       {razorpayOn && <p className="mt-3 text-center text-[11px] text-fg/40">Payments are processed by Razorpay. PickMySeat never sees your card or UPI details.</p>}
     </div>
   );

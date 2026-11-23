@@ -1,7 +1,9 @@
 "use client";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
-import { getMovie } from "@/lib/data";
+import Reviews from "@/components/Reviews";
+import { getMovie } from "@/lib/catalog";
+import { useCatalog } from "@/lib/use-catalog";
 import { getShows } from "@/lib/shows";
 import { useStore } from "@/lib/store";
 import { dayLabel, useHydrated } from "@/lib/pricing";
@@ -12,8 +14,10 @@ export default function MoviePage() {
   const ready = useHydrated();
   const { city, setBooking } = useStore();
   const [day, setDay] = useState(0);
+  const cat = useCatalog();
   const movie = getMovie(id);
-  if (!movie) return <p className="p-10">Movie not found.</p>;
+  if (!movie) return <p className="p-10">{cat.live ? "Movie not found." : "Loading..."}</p>;
+  const audience = cat.ratings[movie.id];
   const cityName = ready ? city : "Mumbai";
   const board = getShows(movie.id, cityName, day);
 
@@ -33,7 +37,10 @@ export default function MoviePage() {
           {/* real key art already carries the title, so keep the heading for screen readers only */}
           <h1 className={movie.banner ? "sr-only" : "mt-2 text-4xl font-black drop-shadow-lg md:text-6xl"}>{movie.title}</h1>
           <p className="mt-3 max-w-2xl text-white/80">{movie.blurb}</p>
-          <p className="mt-3 font-semibold text-amber-300">★ {movie.rating} / 10</p>
+          <p className="mt-3 font-semibold text-amber-300">
+            ★ {movie.rating} / 10 critics
+            {audience?.count ? <span className="ml-3">👥 {audience.avg} / 5 from {audience.count} review{audience.count === 1 ? "" : "s"}</span> : null}
+          </p>
         </div>
       </section>
 
@@ -68,6 +75,7 @@ export default function MoviePage() {
           ))}
         </div>
       </section>
+      <Reviews movieId={movie.id} />
     </div>
   );
 }

@@ -5,7 +5,12 @@ const images = new Map<string, Promise<HTMLImageElement>>();
 function loadImage(src: string) {
   let p = images.get(src);
   if (!p) {
-    p = new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
+    p = new Promise((res, rej) => {
+      const i = new Image();
+      // Images from other sites (key art an admin linked) must allow CORS, or WebGL can't use them; then the generated art stays.
+      if (/^https?:/.test(src) && !src.startsWith(window.location.origin)) i.crossOrigin = "anonymous";
+      i.onload = () => res(i); i.onerror = rej; i.src = src;
+    });
     images.set(src, p);
   }
   return p;

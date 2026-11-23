@@ -11,6 +11,10 @@ body { -webkit-tap-highlight-color: transparent; }
 /* ghost buttons sitting on dark surfaces */
 .on-dark .btn-ghost { @apply border-white/25 text-white hover:bg-white/10; }
 .card { @apply rounded-2xl border border-fg/10 bg-card; }
+.input { @apply w-full rounded-xl border border-fg/20 bg-paper px-3 py-2.5 text-fg outline-none transition placeholder:text-fg/35 focus:border-fg/60; }
+.chip { @apply rounded-full border px-3 py-1.5 text-sm font-semibold transition; }
+.chip-on { @apply border-ink bg-ink text-white; }
+.chip-off { @apply border-fg/20 text-fg/70 hover:border-fg/50 hover:text-fg; }
 
 /* hero title swaps in with a blur-up reveal */
 .reveal { animation: reveal 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) both; }

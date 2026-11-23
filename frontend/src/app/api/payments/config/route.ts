@@ -1,3 +1,4 @@
+import { sql } from "@/lib/db";
 import { keyProblem, razorpayKeys } from "@/lib/razorpay-server";
 
 export const dynamic = "force-dynamic";
@@ -9,6 +10,7 @@ export function GET() {
     razorpay: Boolean(keys),
     keyId: keys?.keyId ?? null,
     mode: keys ? "test" : "off",
+    database: Boolean(sql), // bookings stored and seats locked in Postgres
     ...(keys ? {} : { reason: keyProblem(), env: process.env.VERCEL_ENV ?? "local" }),
   });
 }

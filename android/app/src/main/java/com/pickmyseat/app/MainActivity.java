@@ -18,6 +18,7 @@ import android.view.ViewGroup;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 import android.webkit.CookieManager;
+import android.webkit.JavascriptInterface;
 import android.webkit.PermissionRequest;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
@@ -61,6 +62,8 @@ public class MainActivity extends Activity {
         keepClearOfSystemBars();
 
         web = newWebView();
+        // Lets the site open Android's share sheet ("Share ticket" -> WhatsApp, Messages...). Main page only, not popups.
+        web.addJavascriptInterface(new Bridge(), "PickMySeatApp");
         root.addView(web, match());
 
         progress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
@@ -222,6 +225,20 @@ public class MainActivity extends Activity {
         root.removeView(popup);
         popup.destroy();
         popup = null;
+    }
+
+    /** Called from the website as window.PickMySeatApp.share(title, text). */
+    private class Bridge {
+        @JavascriptInterface
+        public void share(String title, String text) {
+            runOnUiThread(() -> {
+                Intent send = new Intent(Intent.ACTION_SEND);
+                send.setType("text/plain");
+                send.putExtra(Intent.EXTRA_SUBJECT, title);
+                send.putExtra(Intent.EXTRA_TEXT, text);
+                startActivity(Intent.createChooser(send, "Share ticket"));
+            });
+        }
     }
 
     // ---------- Screen layout ----------

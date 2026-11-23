@@ -1,4 +1,5 @@
-import { theatresFor, Theatre } from "./data";
+import type { Theatre } from "./data";
+import { catalogStore, theatresFor } from "./catalog";
 
 export type Show = { id: string; time: string; format: string; fill: number };
 export type TheatreShows = { theatre: Theatre; shows: Show[] };
@@ -20,14 +21,26 @@ const label = (t: string) => {
   return `${String(h % 12 || 12).padStart(2, "0")}:${t.slice(3)} ${h < 12 ? "AM" : "PM"}`;
 };
 
+export const showLabel = label;
+
+/**
+ * Showtimes for a movie in a city on a day, nearest theatre first.
+ * Times an admin set for a movie and theatre are used as they are; otherwise a believable set is generated.
+ */
 export function getShows(movieId: string, city: string, day: number): TheatreShows[] {
+  const set = catalogStore.getState().cat.shows.filter((s) => s.movieId === movieId);
   return [...theatresFor(city)].sort((a, b) => a.km - b.km).map((theatre) => {
     const r = rng(hash(`${movieId}|${city}|${day}|${theatre.id}`));
+    const fillFor = (time: string) => {
+      const hour = parseInt(time);
+      return Math.min(0.95, (hour < 12 ? 0.25 : hour < 17 ? 0.45 : 0.7) + r() * 0.3);
+    };
+    const own = set.filter((s) => s.theatreId === theatre.id).sort((a, b) => a.time.localeCompare(b.time));
+    if (own.length) return { theatre, shows: own.map((s) => ({ id: s.id, time: label(s.time), format: s.format, fill: fillFor(s.time) })) };
     const picked = slots.filter(() => r() < 0.8);
     const shows = (picked.length ? picked : [slots[3]]).map((time) => {
-      const hour = parseInt(time);
-      const base = hour < 12 ? 0.25 : hour < 17 ? 0.45 : 0.7;
-      return { id: `${theatre.id}-${time}`, time: label(time), format: theatre.formats[Math.floor(r() * theatre.formats.length)], fill: Math.min(0.95, base + r() * 0.3) };
+      const format = theatre.formats[Math.floor(r() * theatre.formats.length)];
+      return { id: `${theatre.id}-${time}`, time: label(time), format, fill: fillFor(time) };
     });
     return { theatre, shows };
   });

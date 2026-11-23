@@ -111,6 +111,9 @@ export function buildLayout(def: LayoutDef): Layout {
 }
 
 const cache = new Map<string, Layout>();
+/** Every seat layout an admin can give a theatre. */
+export const layoutIds = () => defs.map((d) => d.id);
+
 export function getLayout(id: string): Layout {
   let l = cache.get(id);
   if (!l) { l = buildLayout(defs.find((d) => d.id === id) ?? defs[0]); cache.set(id, l); }

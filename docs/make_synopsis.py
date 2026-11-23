@@ -87,11 +87,13 @@ bullets([
 # ---------- 3 ----------
 P("3. Key features", h2)
 bullets([
-    "<b>Home and catalogue:</b> a 3D ring of movie screens, five cities, eight films with key art and official trailers, a five-day date picker and theatre showtimes.",
+    "<b>Home and catalogue:</b> a 3D ring of movie screens, six cities, films with key art and official trailers, search with language, genre and format filters, and a five-day date picker with theatre showtimes.",
     "<b>2D seat map:</b> priced sections, available / sold / bestseller / selected seats, and a \"best seats\" finder for the party size.",
     "<b>3D hall:</b> per-theatre layouts with eight seat types (classic to recliner and sofa), a wall-to-wall screen in IMAX or scope ratio, the trailer playing on it, 360° look, walking and camera presets.",
     "<b>Payment:</b> Razorpay Checkout in test mode with card, netbanking and wallet options.",
-    "<b>Tickets:</b> a QR-code ticket with the booking and Razorpay payment IDs, saved under My tickets.",
+    "<b>Accounts and tickets:</b> sign-in with an email or mobile number; QR-code tickets saved to the account on every device, with a share button.",
+    "<b>Ratings and reviews:</b> 1 to 5 stars with comments, one review per customer per movie, and an audience average on every movie.",
+    "<b>Admin panel:</b> add or edit movies, theatres and showtimes, block seats for a show, and see bookings and revenue by day and by movie.",
 ])
 
 # ---------- 4 ----------
@@ -108,8 +110,9 @@ table([
     ["Website (frontend)", "Next.js 14, React 18, TypeScript, Tailwind CSS, Zustand, qrcode; hosted on Vercel"],
     ["3D cinema hall", "Three.js with React Three Fiber and drei (WebGL)"],
     ["Android app", "Android APK built from the same web code with Android Studio, installed directly on the phone (no Play Store)"],
-    ["Backend", "Node.js 24 REST API (built-in http module); payment routes also run as Vercel serverless functions"],
-    ["Database", "SQLite through Node's built-in node:sqlite"],
+    ["Backend", "Next.js API routes as Vercel serverless functions (bookings, payments, accounts, admin); a Node.js 24 REST API for offline use"],
+    ["Database", "PostgreSQL on Supabase (catalogue, accounts, bookings, reviews); SQLite for the offline backend"],
+    ["Security", "scrypt password hashes, signed HttpOnly session cookie, server-side price check, row level security"],
     ["Payments", "Razorpay Checkout (test mode) with server-side HMAC-SHA256 verification"],
     ["Tools", "Git and GitHub, VS Code, node:test automatic tests"],
 ], [38 * mm, 132 * mm])
@@ -117,16 +120,18 @@ table([
 # ---------- 6 ----------
 P("6. System design", h2)
 P("PickMySeat uses a three-tier architecture: the presentation tier is the Next.js frontend shared by the website and the APK, "
-  "the application tier is the Node.js REST API, and the data tier is the SQLite database with the tables movies, cities, theatres, "
-  "snacks, bookings and booked_seats. Seat locking is enforced by a primary key on (show, seat) and a single database transaction, "
-  "so either all seats in a booking are reserved or none are. One theatre layout definition drives the 2D map, the 3D hall, "
-  "the best-seat logic and the pricing, so they always agree.")
+  "the application tier is the set of serverless API routes, and the data tier is a PostgreSQL database with the tables users, movies, "
+  "theatres, shows, bookings, booked_seats and reviews. Seat locking is enforced by a primary key on (show, seat): one SQL statement "
+  "inserts a booking and all its seats, so either every seat is reserved or none is, and of two customers racing for a seat only one "
+  "succeeds. The server recalculates every price, and admins and customers are told apart by a role on the account. One theatre layout "
+  "definition drives the 2D map, the 3D hall, the best-seat logic and the pricing, so they always agree.")
 
 # ---------- 7 ----------
 P("7. Testing, limitations and future scope", h2)
-P("Automatic API tests cover double booking, invalid input, a full payment, a forged signature, cancellation and an expired hold, "
-  "and real Razorpay test payments were completed end to end. Current limits: sample movie data, no user accounts, and payments in test mode only. "
-  "Future scope: user sign-in, live payments with refunds, a cloud PostgreSQL database, a theatre admin dashboard and accessibility options.")
+P("Automatic tests cover double booking, six customers racing for one seat, a tampered price, a forged payment signature, cancellation, "
+  "expired holds, sign-up and sign-in, admin-only access, seat blocking and reviews, and real Razorpay test payments were completed end to end. "
+  "Current limits: sample movie data, no SMS one-time password for mobile sign-in, and payments in test mode only. "
+  "Future scope: OTP verification, live payments with refunds, e-mail tickets, QR check-in at the gate and accessibility options.")
 
 # ---------- 8 ----------
 P("8. Conclusion", h2)
