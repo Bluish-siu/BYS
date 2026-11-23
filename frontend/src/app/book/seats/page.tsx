@@ -58,7 +58,7 @@ function bestsellers(layout: Layout) {
 
 export default function SeatsPage() {
   const ready = useHydrated();
-  useCatalog();
+  const cat = useCatalog(); // seat prices can change in the admin panel
   useNow(); // re-check every half minute whether the show has started
   const router = useRouter();
   const { booking, patch } = useStore();
@@ -80,7 +80,7 @@ export default function SeatsPage() {
     return () => clearInterval(t);
   }, [tour]);
 
-  const layout = useMemo(() => (booking ? layoutFor(booking) : null), [booking?.theatreId]); // eslint-disable-line react-hooks/exhaustive-deps
+  const layout = useMemo(() => (booking ? layoutFor(booking) : null), [booking?.theatreId, cat]); // eslint-disable-line react-hooks/exhaustive-deps
   const showKey = booking ? showKeyOf(booking) : "";
   // Seats bought by other customers, from the backend (empty in demo mode).
   const [booked, setBooked] = useState<string[]>([]);
@@ -88,8 +88,14 @@ export default function SeatsPage() {
     if (!showKey) return;
     let live = true;
     setBooked([]);
-    fetchBookedSeats(showKey).then((s) => { if (live) setBooked(s); });
-    return () => { live = false; };
+    const refresh = () => fetchBookedSeats(showKey).then((s) => {
+      // Only re-render when something actually changed.
+      if (live) setBooked((old) => (old.length === s.length && old.every((x) => s.includes(x)) ? old : s));
+    });
+    refresh();
+    // Keep the map live: seats other people buy or start paying for appear within a few seconds.
+    const t = setInterval(() => { if (document.visibilityState === "visible") refresh(); }, 5000);
+    return () => { live = false; clearInterval(t); };
   }, [showKey]);
   // Drop any picked seat that another customer has bought meanwhile.
   useEffect(() => {

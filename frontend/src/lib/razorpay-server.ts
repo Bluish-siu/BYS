@@ -46,3 +46,20 @@ export async function razorpay<T>(auth: string, path: string, body?: unknown): P
   if (!r.ok) throw new Error(data?.error?.description ?? `Razorpay error ${r.status}`);
   return data as T;
 }
+
+/**
+ * Refunds part or all of a payment (rupees) and returns the refund id. Test-mode payments that were only
+ * authorised (not yet captured) are captured first, because Razorpay can only refund captured payments.
+ */
+export async function refundPayment(paymentId: string, rupees: number, notes: Record<string, string>) {
+  const keys = razorpayKeys();
+  if (!keys) throw new Error("Razorpay is not set up");
+  const p = await razorpay<{ status: string; amount: number; currency: string }>(keys.auth, `/payments/${encodeURIComponent(paymentId)}`);
+  if (p.status === "authorized")
+    await razorpay(keys.auth, `/payments/${encodeURIComponent(paymentId)}/capture`, { amount: p.amount, currency: p.currency });
+  else if (p.status !== "captured") throw new Error(`the payment is ${p.status}`);
+  const r = await razorpay<{ id: string }>(keys.auth, `/payments/${encodeURIComponent(paymentId)}/refund`, {
+    amount: Math.min(p.amount, Math.round(rupees * 100)), speed: "normal", notes,
+  });
+  return r.id;
+}

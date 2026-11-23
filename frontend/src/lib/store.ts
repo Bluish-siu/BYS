@@ -7,7 +7,11 @@ export type Booking = {
   movieId: string; city: string; date: string; theatreId: string; showId: string; time: string; format: string;
   fill: number; seats: string[]; snacks: Record<string, number>;
 };
-export type Ticket = { id: string; booking: Booking; total: number; at: number; paymentId?: string };
+export type Ticket = {
+  id: string; booking: Booking; total: number; at: number; paymentId?: string;
+  // From the server when available:
+  status?: "confirmed" | "cancelled"; checkedInAt?: number; cancelledAt?: number; refundAmount?: number; refundId?: string; mine?: boolean;
+};
 
 type State = {
   city: string; setCity: (c: string) => void;
@@ -20,7 +24,7 @@ export const useStore = create<State>()(persist((set) => ({
   city: "Mumbai", setCity: (city) => set({ city }),
   booking: null, setBooking: (booking) => set({ booking }),
   patch: (p) => set((s) => (s.booking ? { booking: { ...s.booking, ...p } } : s)),
-  tickets: [], addTicket: (t) => set((s) => ({ tickets: [t, ...s.tickets] })),
+  tickets: [], addTicket: (t) => set((s) => ({ tickets: [t, ...s.tickets.filter((x) => x.id !== t.id)] })),
 }), {
   name: "pickmyseat",
   // Version 1: shows use their real date instead of "days from today" (version 0).

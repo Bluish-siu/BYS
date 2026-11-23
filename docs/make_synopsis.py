@@ -91,17 +91,18 @@ bullets([
     "<b>2D seat map:</b> priced sections, available / sold / bestseller / selected seats, and a \"best seats\" finder for the party size.",
     "<b>3D hall:</b> per-theatre layouts with eight seat types (classic to recliner and sofa), a wall-to-wall screen in IMAX or scope ratio, the trailer playing on it, 360° look, walking and camera presets.",
     "<b>Payment:</b> Razorpay Checkout in test mode with card, netbanking and wallet options.",
-    "<b>Accounts and tickets:</b> sign-in with an email or mobile number; QR-code tickets saved to the account on every device, with a share button.",
+    "<b>Accounts and tickets:</b> sign-in with an email or mobile number, email confirmed with a code, forgot password; QR-code tickets saved to the account, with share and cancel (Razorpay refund).",
     "<b>Ratings and reviews:</b> 1 to 5 stars with comments, one review per customer per movie, and an audience average on every movie.",
-    "<b>Admin panel:</b> add or edit movies, theatres and showtimes, block seats for a show, and see bookings and revenue by day and by movie.",
+    "<b>Admin panel:</b> movies, theatres, showtimes, seat and snack prices, seat blocking, customers, QR check-in with the phone camera, refunds, and revenue by day and by movie.",
 ])
 
 # ---------- 4 ----------
 P("4. Booking and payment flow", h2)
 P("Movie → day, theatre and showtime → seats on the 2D map, checked in 3D → snacks → payment → ticket. "
-  "At payment the server holds the seats for 10 minutes and creates a Razorpay order. Razorpay returns a signed result, "
-  "and the server verifies its HMAC-SHA256 signature with the secret key before confirming the booking. "
-  "Closing the payment window or letting the hold expire releases the seats for others.")
+  "At payment the server holds the seats for 10 minutes and creates a Razorpay order. Razorpay returns a signed result "
+  "(in the Android app through Razorpay's redirect flow), and the server verifies its HMAC-SHA256 signature before confirming "
+  "the booking. A failed payment or an expired hold releases the seats; the seat map refreshes every 5 seconds. Tickets can be "
+  "cancelled until 30 minutes before the show with a refund, and each QR code works once at the entrance.")
 
 # ---------- 5 ----------
 P("5. Technology stack", h2)
@@ -110,8 +111,8 @@ table([
     ["Website (frontend)", "Next.js 14, React 18, TypeScript, Tailwind CSS, Zustand, qrcode; hosted on Vercel"],
     ["3D cinema hall", "Three.js with React Three Fiber and drei (WebGL)"],
     ["Android app", "Android APK built from the same web code with Android Studio, installed directly on the phone (no Play Store)"],
-    ["Backend", "Next.js API routes as Vercel serverless functions (bookings, payments, accounts, admin); a Node.js 24 REST API for offline use"],
-    ["Database", "PostgreSQL on Supabase (catalogue, accounts, bookings, reviews); SQLite for the offline backend"],
+    ["Backend", "Next.js API routes running as Vercel serverless functions (bookings, payments, refunds, accounts, e-mail codes, admin)"],
+    ["Database", "PostgreSQL on Supabase: users, movies, theatres, shows, snacks, prices, bookings, seats and reviews"],
     ["Security", "scrypt password hashes, signed HttpOnly session cookie, server-side price check, row level security"],
     ["Payments", "Razorpay Checkout (test mode) with server-side HMAC-SHA256 verification"],
     ["Tools", "Git and GitHub, VS Code, node:test automatic tests"],
@@ -128,10 +129,10 @@ P("PickMySeat uses a three-tier architecture: the presentation tier is the Next.
 
 # ---------- 7 ----------
 P("7. Testing, limitations and future scope", h2)
-P("Automatic tests cover double booking, six customers racing for one seat, a tampered price, a forged payment signature, cancellation, "
-  "expired holds, sign-up and sign-in, admin-only access, seat blocking and reviews, and real Razorpay test payments were completed end to end. "
-  "Current limits: sample movie data, no SMS one-time password for mobile sign-in, and payments in test mode only. "
-  "Future scope: OTP verification, live payments with refunds, e-mail tickets, QR check-in at the gate and accessibility options.")
+P("An end-to-end test of 68 checks runs against the real database: seat locking, tampered prices, forged signatures, both payment flows, "
+  "email codes, password reset, check-in, cancellation, refunds, admin access and reviews; date tests cover midnight and started shows. "
+  "Current limits: sample movie data, no SMS code for mobile numbers, and payments in test mode only. "
+  "Future scope: SMS OTP, live payments, e-mailed tickets, a seat-occupancy report and accessibility options.")
 
 # ---------- 8 ----------
 P("8. Conclusion", h2)

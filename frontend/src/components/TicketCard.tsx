@@ -14,6 +14,8 @@ export default function TicketCard({ ticket, link = false }: { ticket: Ticket; l
   const movie = getMovie(b.movieId) ?? allMovies()[0];
   const showDate = dateLabel(b.date);
   const theatre = findTheatre(b.theatreId);
+  const cancelled = ticket.status === "cancelled";
+  const used = !cancelled && Boolean(ticket.checkedInAt);
   useEffect(() => {
     QRCode.toDataURL(`PICKMYSEAT|${ticket.id}|${b.seats.join(",")}`, { margin: 1, width: 220 }).then(setQr);
   }, [ticket.id, b.seats]);
@@ -28,9 +30,16 @@ export default function TicketCard({ ticket, link = false }: { ticket: Ticket; l
         <p className="mt-3 text-sm">Seats: <b>{b.seats.join(", ")}</b></p>
         <p className="mt-1 text-xs text-white/50">Booking ID {ticket.id} · ₹{ticket.total}</p>
         {ticket.paymentId && <p className="text-xs text-white/50">Paid via Razorpay (test) · {ticket.paymentId}</p>}
+        {cancelled && (
+          <p className="mt-2 inline-block rounded-full bg-white/15 px-3 py-1 text-xs font-semibold">
+            Cancelled{ticket.refundAmount ? ` · ₹${ticket.refundAmount} refunded` : ""}
+          </p>
+        )}
+        {used && <p className="mt-2 inline-block rounded-full bg-emerald-400/20 px-3 py-1 text-xs font-semibold text-emerald-200">✓ Checked in {new Date(ticket.checkedInAt!).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}</p>}
       </div>
-      <div className="grid w-40 place-items-center bg-white p-2">
-        {qr ? <img src={qr} alt={`QR for ${ticket.id}`} className="w-full" /> : null}
+      <div className="relative grid w-40 place-items-center bg-white p-2">
+        {qr ? <img src={qr} alt={`QR for ${ticket.id}`} className={`w-full ${cancelled || used ? "opacity-20" : ""}`} /> : null}
+        {(cancelled || used) && <span className="absolute rotate-[-18deg] rounded border-2 border-ink px-2 py-0.5 text-sm font-black text-ink">{cancelled ? "CANCELLED" : "USED"}</span>}
       </div>
     </div>
   );

@@ -2,7 +2,7 @@
 // Starts with the built-in data (data.ts), then switches to the database copy from /api/catalog,
 // which admins edit in the admin panel. Server routes load it from the database (catalog-server.ts).
 import { createStore } from "zustand/vanilla";
-import { cityTheatres, movies as builtInMovies, type Movie, type Theatre } from "./data";
+import { cityTheatres, movies as builtInMovies, snacks as builtInSnacks, type Movie, type Snack, type Theatre } from "./data";
 
 export type CityTheatre = Theatre & { city: string };
 export type ShowRow = { id: string; movieId: string; theatreId: string; time: string; format: string };
@@ -12,6 +12,8 @@ export type Catalog = {
   theatres: CityTheatre[];
   shows: ShowRow[];                 // admin-set showtimes; movie/theatre pairs without any get generated ones
   ratings: Record<string, Rating>;  // audience ratings from reviews, by movie id
+  snacks: Snack[];                  // the snack menu, with admin prices
+  seatPrices: Record<string, Record<string, number>>; // theatreId -> section name -> price, set by an admin
   live: boolean;                    // true when it came from the database
 };
 
@@ -20,6 +22,8 @@ export const builtInCatalog: Catalog = {
   theatres: Object.entries(cityTheatres).flatMap(([city, list]) => list.map((t) => ({ ...t, city }))),
   shows: [],
   ratings: {},
+  snacks: builtInSnacks,
+  seatPrices: {},
   live: false,
 };
 
@@ -37,6 +41,8 @@ export const theatresFor = (city: string) => {
 };
 /** The theatre with this id. Falls back to the first theatre so old tickets still open. */
 export const findTheatre = (id: string) => cur().theatres.find((t) => t.id === id) ?? cur().theatres[0];
+export const snackMenu = () => cur().snacks;
+export const seatPricesFor = (theatreId: string) => cur().seatPrices[theatreId];
 export const theatreExists = (id: string) => cur().theatres.some((t) => t.id === id);
 
 const CACHE_KEY = "pickmyseat-catalog";

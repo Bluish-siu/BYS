@@ -10,7 +10,7 @@ import { useStore } from "@/lib/store";
 export default function Header() {
   const { city, setCity } = useStore();
   const cat = useCatalog();
-  const { enabled, user } = useAccount();
+  const { enabled, user, needsVerify } = useAccount();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const cities = cityList(cat);
@@ -33,14 +33,14 @@ export default function Header() {
         <Link href="/movies" className="hidden hover:text-brand sm:block">Movies</Link>
         <Link href="/tickets" className="btn btn-ghost whitespace-nowrap !px-3 !py-1.5"><span className="hidden sm:inline">My&nbsp;</span>Tickets</Link>
         {mounted && enabled && (user
-          ? <AccountMenu name={user.name} label={accountLabel(user)} admin={user.role === "admin"} />
+          ? <AccountMenu name={user.name} label={accountLabel(user)} admin={user.role === "admin"} verify={needsVerify} />
           : <Link href={`/login?next=${encodeURIComponent(pathname)}`} className="btn btn-brand whitespace-nowrap !px-3 !py-1.5">Sign in</Link>)}
       </nav>
     </header>
   );
 }
 
-function AccountMenu({ name, label, admin }: { name: string; label: string; admin: boolean }) {
+function AccountMenu({ name, label, admin, verify }: { name: string; label: string; admin: boolean; verify: boolean }) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -61,6 +61,7 @@ function AccountMenu({ name, label, admin }: { name: string; label: string; admi
             <p className="font-bold">{name}</p>
             <p className="truncate text-xs text-fg/55">{label}</p>
           </div>
+          {verify && <Link onClick={() => setOpen(false)} href="/login?mode=verify" className="block rounded-lg px-3 py-2 font-semibold text-brand hover:bg-fg/5">Confirm your email</Link>}
           <Link onClick={() => setOpen(false)} href="/tickets" className="block rounded-lg px-3 py-2 hover:bg-fg/5">My tickets</Link>
           {admin && <Link onClick={() => setOpen(false)} href="/admin" className="block rounded-lg px-3 py-2 font-semibold text-brand hover:bg-fg/5">Admin panel</Link>}
           <button onClick={async () => { setOpen(false); await signOut(); router.push("/"); }} className="block w-full rounded-lg px-3 py-2 text-left hover:bg-fg/5">Sign out</button>

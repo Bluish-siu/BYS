@@ -1,10 +1,10 @@
 // Server-only booking logic for the website's API routes: checks the request against the live catalogue,
 // recalculates the price, and reserves seats atomically so a seat can never be sold twice.
 import { randomBytes } from "node:crypto";
-import { snacks as menu } from "./data";
-import { findTheatre, getMovie, theatreExists } from "./catalog";
+import { findTheatre, getMovie, snackMenu, theatreExists } from "./catalog";
 import { dbCatalog } from "./catalog-server";
 import { grandTotal, layoutFor } from "./price";
+import { refundPayment } from "./razorpay-server";
 import { getShows, soldSeatsFor } from "./shows";
 import { bookableDates, isDate } from "./dates";
 import type { sql as Db } from "./db";
@@ -58,7 +58,7 @@ export async function checkBooking(body: unknown): Promise<{ ok: true; b: Bookin
   if (gone.length) return { ok: false, status: 409, error: `Seat ${gone.join(", ")} is already sold`, taken: gone };
   const snacks: Record<string, number> = {};
   for (const [id, q] of Object.entries(r.snacks ?? {})) {
-    if (!menu.some((m) => m.id === id) || !Number.isInteger(q) || q < 0 || q > 20) return bad("Invalid snacks");
+    if (!snackMenu().some((m) => m.id === id) || !Number.isInteger(q) || q < 0 || q > 20) return bad("Invalid snacks");
     if (q > 0) snacks[id] = q;
   }
   const b: BookingInput = { movieId, theatreId: theatre.id, city: theatre.city, date, showId: show.id, time: show.time, format: show.format, seats, snacks, total: 0 };
@@ -112,9 +112,62 @@ export const takenResponse = (taken: string[]) =>
 /** A booking row as the ticket pages use it. */
 export type TicketRow = {
   id: string; movie_id: string; theatre_id: string; city: string; show_date: string | Date; show_id: string; show_time: string; format: string;
-  seats: string[]; snacks: Record<string, number>; total: number; payment_id: string | null; created_at: Date;
+  seats: string[]; snacks: Record<string, number>; total: number; payment_id: string | null; created_at: Date; status: string;
+  user_id: string | null; checked_in_at: Date | null; cancelled_at: Date | null; cancelled_by: string | null; refund_id: string | null; refund_amount: number | null;
 };
+const ms = (d: Date | null) => (d ? new Date(d).getTime() : undefined);
 export const ticketOut = (r: TicketRow) => ({
   id: r.id, total: r.total, at: new Date(r.created_at).getTime(), paymentId: r.payment_id ?? undefined,
+  status: r.status as "confirmed" | "cancelled", checkedInAt: ms(r.checked_in_at), cancelledAt: ms(r.cancelled_at),
+  refundAmount: r.refund_amount ?? undefined, refundId: r.refund_id ?? undefined,
   booking: { movieId: r.movie_id, city: r.city, date: new Date(r.show_date).toISOString().slice(0, 10), theatreId: r.theatre_id, showId: r.show_id, time: r.show_time, format: r.format, fill: 0, seats: r.seats, snacks: r.snacks },
 });
+
+// ---------- Cancellation and refunds ----------
+
+/** Customers can cancel until this many minutes before the show starts. */
+export const CANCEL_UNTIL_MIN = 30;
+
+/** When a show starts, from its date (YYYY-MM-DD) and its label ("07:00 PM"), in India time. */
+export function showStartMs(date: string, label: string) {
+  const m = label.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+  const [y, mo, d] = date.split("-").map(Number);
+  if (!m || !y) return NaN;
+  const h = (Number(m[1]) % 12) + (m[3].toUpperCase() === "PM" ? 12 : 0);
+  return Date.UTC(y, mo - 1, d, h, Number(m[2])) - 330 * 60_000;
+}
+
+/**
+ * Cancels a confirmed booking: refunds `refund` rupees through Razorpay (test mode) when it was paid online,
+ * then frees its seats. The booking is claimed first, so two cancel taps can't refund twice.
+ * If Razorpay refuses the refund, nothing changes.
+ */
+export async function cancelBooking(sql: Sql, id: string, by: "customer" | "admin", refund: number):
+  Promise<{ ok: true; refundAmount: number; refundId: string | null } | { ok: false; status: number; error: string }> {
+  const [b] = await sql`UPDATE bookings SET cancelled_at = now(), cancelled_by = ${by}
+                        WHERE id = ${id} AND status = 'confirmed' AND cancelled_at IS NULL RETURNING payment_id`;
+  if (!b) return { ok: false, status: 409, error: "This ticket is already cancelled, or is being cancelled." };
+  let refundId: string | null = null;
+  const amount = b.payment_id ? Math.max(0, refund) : 0;
+  if (b.payment_id && amount > 0) {
+    try {
+      refundId = await refundPayment(b.payment_id, amount, { booking: id, by });
+    } catch (e) {
+      await sql`UPDATE bookings SET cancelled_at = NULL, cancelled_by = NULL WHERE id = ${id}`;
+      return { ok: false, status: 502, error: `Razorpay couldn't refund this payment: ${(e as Error).message}` };
+    }
+  }
+  await sql`WITH b AS (UPDATE bookings SET status = 'cancelled', refund_id = ${refundId}, refund_amount = ${amount} WHERE id = ${id} RETURNING id)
+            DELETE FROM booked_seats WHERE booking_id IN (SELECT id FROM b)`;
+  return { ok: true, refundAmount: amount, refundId };
+}
+
+/**
+ * Marks a held booking as paid once Razorpay's signature has been checked. Used by both the in-page
+ * handler (/payments/verify) and the redirect flow (/payments/callback, used inside the Android app).
+ */
+export async function confirmPaid(sql: Sql, orderId: string, paymentId: string): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  const [b] = await sql`UPDATE bookings SET status = 'confirmed', payment_id = ${paymentId}, expires_at = NULL
+                        WHERE payment_order_id = ${orderId} AND status IN ('pending', 'confirmed') RETURNING id`;
+  return b ? { ok: true, id: b.id } : { ok: false, error: "Your seat hold expired before the payment finished. Any amount debited will be refunded." };
+}

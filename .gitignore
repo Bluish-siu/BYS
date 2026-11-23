@@ -7,7 +7,3 @@ out/
 .DS_Store
 npm-debug.log*
 
-# SQLite database files are created on first run from database/schema.sql + seed.sql
-database/*.db
-database/*.db-wal
-database/*.db-shm

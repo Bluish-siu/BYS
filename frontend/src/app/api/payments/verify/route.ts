@@ -1,4 +1,5 @@
 import { sql } from "@/lib/db";
+import { confirmPaid } from "@/lib/booking-server";
 import { razorpay, razorpayKeys, signatureOk } from "@/lib/razorpay-server";
 
 export const dynamic = "force-dynamic";
@@ -12,10 +13,9 @@ export async function POST(req: Request) {
   if (!signatureOk(keys.secret, orderId, paymentId, signature)) return Response.json({ error: "Payment could not be verified" }, { status: 400 });
 
   if (sql) {
-    const [b] = await sql`UPDATE bookings SET status = 'confirmed', payment_id = ${paymentId}, expires_at = NULL
-                          WHERE payment_order_id = ${orderId} RETURNING id`;
-    if (!b) return Response.json({ error: "Your seat hold expired before the payment finished. Any amount debited will be refunded." }, { status: 410 });
-    return Response.json({ id: b.id, payment_id: paymentId, status: "confirmed" });
+    const r = await confirmPaid(sql, orderId, paymentId);
+    if (!r.ok) return Response.json({ error: r.error }, { status: 410 });
+    return Response.json({ id: r.id, payment_id: paymentId, status: "confirmed" });
   }
   try {
     // No database: the booking id was stored as the order's receipt.

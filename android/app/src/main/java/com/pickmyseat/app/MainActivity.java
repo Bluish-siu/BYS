@@ -204,11 +204,37 @@ public class MainActivity extends Activity {
             if (window == popup) closePopup();
         }
 
-        // The site does not use the camera, microphone or location.
+        // Only the camera, only for PickMySeat's own pages (the admin's ticket scanner). Everything else is refused.
         @Override
         public void onPermissionRequest(PermissionRequest request) {
-            request.deny();
+            runOnUiThread(() -> {
+                Uri origin = request.getOrigin();
+                String host = Uri.parse(BuildConfig.SITE_URL).getHost();
+                boolean ours = origin != null && host != null && host.equals(origin.getHost());
+                boolean camera = java.util.Arrays.asList(request.getResources()).contains(PermissionRequest.RESOURCE_VIDEO_CAPTURE);
+                if (!ours || !camera) { request.deny(); return; }
+                if (checkSelfPermission(android.Manifest.permission.CAMERA) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                    request.grant(new String[] { PermissionRequest.RESOURCE_VIDEO_CAPTURE });
+                } else {
+                    pendingCamera = request;
+                    requestPermissions(new String[] { android.Manifest.permission.CAMERA }, CAMERA_REQUEST);
+                }
+            });
         }
+    }
+
+    private static final int CAMERA_REQUEST = 7;
+    private PermissionRequest pendingCamera;
+
+    @Override
+    public void onRequestPermissionsResult(int code, String[] permissions, int[] results) {
+        super.onRequestPermissionsResult(code, permissions, results);
+        if (code != CAMERA_REQUEST || pendingCamera == null) return;
+        if (results.length > 0 && results[0] == android.content.pm.PackageManager.PERMISSION_GRANTED)
+            pendingCamera.grant(new String[] { PermissionRequest.RESOURCE_VIDEO_CAPTURE });
+        else
+            pendingCamera.deny();
+        pendingCamera = null;
     }
 
     private void exitFullscreen() {

@@ -1,5 +1,5 @@
 // Server-only: reads the catalogue from Postgres, filling it from the built-in data the first time.
-import type { Movie } from "./data";
+import type { Movie, Snack } from "./data";
 import { builtInCatalog, setCatalog, type Catalog, type CityTheatre } from "./catalog";
 import { sql } from "./db";
 
@@ -11,10 +11,16 @@ type TheatreRow = Omit<CityTheatre, "km"> & { km: string; active: boolean };
 
 export type AdminMovie = Movie & { active: boolean; sort: number };
 export type AdminTheatre = CityTheatre & { active: boolean };
+export type AdminSnack = Snack & { active: boolean; sort: number };
 
 async function seedIfEmpty() {
   if (!sql) return;
-  const [{ n }] = await sql`SELECT count(*)::int AS n FROM movies`;
+  const [{ n, s }] = await sql`SELECT (SELECT count(*) FROM movies)::int AS n, (SELECT count(*) FROM snacks)::int AS s`;
+  if (s === 0) {
+    let i = 0;
+    for (const x of builtInCatalog.snacks)
+      await sql`INSERT INTO snacks (id, name, price, emoji, sort) VALUES (${x.id}, ${x.name}, ${x.price}, ${x.emoji}, ${i++}) ON CONFLICT (id) DO NOTHING`;
+  }
   if (n > 0) return;
   await sql.begin(async (tx) => {
     let i = 0;
@@ -38,12 +44,16 @@ const toTheatre = (r: TheatreRow): AdminTheatre => ({ id: r.id, city: r.city, na
 export async function adminCatalog() {
   if (!sql) return null;
   await seedIfEmpty();
-  const [movies, theatres, shows] = await Promise.all([
+  const [movies, theatres, shows, snacks, prices] = await Promise.all([
     sql<MovieRow[]>`SELECT * FROM movies ORDER BY sort, title`,
     sql<TheatreRow[]>`SELECT * FROM theatres ORDER BY city, km`,
     sql`SELECT id, movie_id AS "movieId", theatre_id AS "theatreId", time, format FROM shows ORDER BY time`,
+    sql<AdminSnack[]>`SELECT id, name, price, emoji, active, sort FROM snacks ORDER BY sort, name`,
+    sql`SELECT theatre_id, section, price FROM seat_prices`,
   ]);
-  return { movies: movies.map(toMovie), theatres: theatres.map(toTheatre), shows: shows as unknown as Catalog["shows"] };
+  const seatPrices: Catalog["seatPrices"] = {};
+  for (const p of prices) (seatPrices[p.theatre_id] ??= {})[p.section] = p.price;
+  return { movies: movies.map(toMovie), theatres: theatres.map(toTheatre), shows: shows as unknown as Catalog["shows"], snacks: [...snacks], seatPrices };
 }
 
 /** The public catalogue (active movies and theatres only). Also becomes the server's current catalogue. */
@@ -61,6 +71,8 @@ export async function dbCatalog(): Promise<Catalog> {
     theatres,
     shows: all!.shows.filter((s) => live.has(s.movieId) && open.has(s.theatreId)),
     ratings: Object.fromEntries(ratings.map((r) => [r.movie_id, { avg: r.avg, count: r.count }])),
+    snacks: all!.snacks.filter((x) => x.active).map(({ active, sort, ...x }) => x), // eslint-disable-line @typescript-eslint/no-unused-vars
+    seatPrices: all!.seatPrices,
     live: true,
   };
   cache = { at: Date.now(), cat };

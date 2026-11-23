@@ -3,6 +3,9 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Admins scan ticket QR codes at the entrance; asked for only when the scanner opens -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
 
     <!-- UPI apps the Razorpay checkout may hand the payment to -->
     <queries>
@@ -35,3 +38,4 @@
         </activity>
     </application>
 </manifest>
+

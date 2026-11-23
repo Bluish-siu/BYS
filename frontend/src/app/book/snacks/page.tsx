@@ -1,12 +1,13 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { snacks } from "@/lib/data";
+import { useCatalog } from "@/lib/use-catalog";
 import { useStore } from "@/lib/store";
 import { seatsTotal, snacksTotal, useHydrated } from "@/lib/pricing";
 
 export default function SnacksPage() {
   const ready = useHydrated();
+  const { snacks } = useCatalog();
   const router = useRouter();
   const { booking, patch } = useStore();
   useEffect(() => { if (ready && (!booking || !booking.seats.length)) router.replace("/"); }, [ready, booking, router]);

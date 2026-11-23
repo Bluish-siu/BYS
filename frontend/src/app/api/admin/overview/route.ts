@@ -13,7 +13,9 @@ export async function GET(req: Request) {
   const like = `%${q}%`;
   const [totals, byMovie, byDay, users, recent] = await Promise.all([
     db`SELECT coalesce(sum(total), 0)::int AS revenue, count(*)::int AS bookings, coalesce(sum(jsonb_array_length(seats)), 0)::int AS tickets,
-              coalesce(sum(total) FILTER (WHERE (created_at AT TIME ZONE 'Asia/Kolkata')::date = (now() AT TIME ZONE 'Asia/Kolkata')::date), 0)::int AS today
+              coalesce(sum(total) FILTER (WHERE (created_at AT TIME ZONE 'Asia/Kolkata')::date = (now() AT TIME ZONE 'Asia/Kolkata')::date), 0)::int AS today,
+              count(*) FILTER (WHERE checked_in_at IS NOT NULL)::int AS checked_in,
+              (SELECT coalesce(sum(refund_amount), 0)::int FROM bookings WHERE status = 'cancelled') AS refunded
        FROM bookings WHERE status = 'confirmed'`,
     db`SELECT movie_id, sum(total)::int AS revenue, sum(jsonb_array_length(seats))::int AS tickets
        FROM bookings WHERE status = 'confirmed' GROUP BY movie_id ORDER BY revenue DESC`,
@@ -22,10 +24,11 @@ export async function GET(req: Request) {
        LEFT JOIN bookings b ON b.status = 'confirmed' AND (b.created_at AT TIME ZONE 'Asia/Kolkata')::date = d::date
        GROUP BY d ORDER BY d`,
     db`SELECT count(*)::int AS n FROM users`,
-    db`SELECT b.id, b.movie_id, b.theatre_id, b.city, b.show_time, b.format, b.seats, b.total, b.status, b.payment_id, b.created_at,
+    db`SELECT b.id, b.movie_id, b.theatre_id, b.city, b.show_time, to_char(b.show_date, 'YYYY-MM-DD') AS show_date, b.format, b.seats, b.total, b.status,
+              b.payment_id, b.created_at, b.checked_in_at, b.refund_amount, b.cancelled_by,
               u.name AS customer, coalesce(u.email, u.phone) AS contact
        FROM bookings b LEFT JOIN users u ON u.id = b.user_id
-       WHERE b.status = 'confirmed' AND (${q} = '' OR b.id ILIKE ${like} OR u.name ILIKE ${like} OR u.email ILIKE ${like} OR u.phone ILIKE ${like})
+       WHERE b.status IN ('confirmed', 'cancelled') AND (${q} = '' OR b.id ILIKE ${like} OR u.name ILIKE ${like} OR u.email ILIKE ${like} OR u.phone ILIKE ${like})
        ORDER BY b.created_at DESC LIMIT 100`,
   ]);
   return Response.json({ ...totals[0], customers: users[0].n, byMovie, byDay, recent });

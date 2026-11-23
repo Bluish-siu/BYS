@@ -1,10 +1,7 @@
-// Talks to the booking API: the website's own /api routes (Postgres on Supabase, as on Vercel),
-// or the separate backend/ server when NEXT_PUBLIC_API_URL is set, e.g. http://localhost:4000/api.
+// Talks to the website's own API routes (src/app/api), which use the PostgreSQL database on Supabase.
 import type { Booking } from "./store";
 
-const API = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
-export const apiEnabled = Boolean(API);
-const PAY_API = API ?? "/api";
+const PAY_API = "/api";
 
 /** Identifies one screening: movie, show and its real date, e.g. ramayana|mum-icon-18:55|2026-11-24. */
 export const showKeyOf = (b: Pick<Booking, "movieId" | "showId" | "date">) => `${b.movieId}|${b.showId}|${b.date}`;

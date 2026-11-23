@@ -2,13 +2,12 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { snacks } from "@/lib/data";
-import { allMovies, findTheatre, getMovie } from "@/lib/catalog";
+import { allMovies, findTheatre, getMovie, snackMenu } from "@/lib/catalog";
 import { useCatalog } from "@/lib/use-catalog";
 import { useAccount } from "@/lib/auth";
 import { useStore } from "@/lib/store";
 import {
-  apiEnabled, cancelPayment, createBooking, createPaymentOrder, fetchPaymentConfig, loadRazorpay, verifyPayment,
+  cancelPayment, createBooking, createPaymentOrder, fetchPaymentConfig, loadRazorpay, verifyPayment,
   type PaymentConfig, type RazorpayResult,
 } from "@/lib/api";
 import { FEE, grandTotal, seatsTotal, useHydrated, useNow } from "@/lib/pricing";
@@ -36,6 +35,9 @@ export default function PayPage() {
   useEffect(() => { if (ready && !paying && !done.current && (!booking || !booking.seats.length)) router.replace("/"); }, [ready, paying, booking, router]);
   useEffect(() => {
     fetchPaymentConfig().then((c) => { setConfig(c); setChecked(true); if (c?.razorpay) loadRazorpay(); });
+    // Back from Razorpay's redirect flow (Android app) after a failed or cancelled payment.
+    const failed = new URLSearchParams(window.location.search).get("failed");
+    if (failed) { setError(failed); window.history.replaceState(null, "", "/book/pay"); }
   }, []);
   if (!ready || !booking) return <p className="p-10 text-fg/60">Loading...</p>;
 
@@ -46,6 +48,7 @@ export default function PayPage() {
   const theatre = findTheatre(booking.theatreId);
   const total = grandTotal(booking);
   const razorpayOn = Boolean(config?.razorpay);
+  const inApp = typeof navigator !== "undefined" && /PickMySeatApp/.test(navigator.userAgent);
 
   const issue = (id: string, paymentId?: string) => {
     done.current = true;
@@ -76,12 +79,19 @@ export default function PayPage() {
       notes: { booking: order.bookingId },
       theme: { color: "#FF5A36" },
       timeout: order.holdMinutes * 60,
-      handler: async (r: RazorpayResult) => {
-        setError("");
-        const v = await verifyPayment(r);
-        if (v.ok) issue(v.id, v.paymentId);
-        else fail(v.error);
-      },
+      // Inside the Android app, Razorpay's popup windows (cards, netbanking) can't report back to this page,
+      // so the app uses Razorpay's redirect flow: the whole payment happens as normal page loads and Razorpay
+      // posts the signed result to our server, which then opens the ticket.
+      ...(inApp
+        ? { callback_url: `${window.location.origin}/api/payments/callback`, redirect: true }
+        : {
+            handler: async (r: RazorpayResult) => {
+              setError("");
+              const v = await verifyPayment(r);
+              if (v.ok) issue(v.id, v.paymentId);
+              else fail(v.error);
+            },
+          }),
       modal: {
         confirm_close: true,
         ondismiss: async () => {
@@ -102,7 +112,7 @@ export default function PayPage() {
     if (razorpayOn) return payWithRazorpay();
     // Demo payment: no real charge. With a backend, the server reserves the seats and issues the ticket id.
     await new Promise((r) => setTimeout(r, 800));
-    if (!apiEnabled && !config?.database) return issue("PMS" + Math.random().toString(36).slice(2, 10).toUpperCase());
+    if (!config?.database) return issue("PMS" + Math.random().toString(36).slice(2, 10).toUpperCase());
     const res = await createBooking(booking, total);
     if (res.ok) return issue(res.id);
     fail(seatsTaken(res.taken) || res.error);
@@ -120,7 +130,8 @@ export default function PayPage() {
         <hr className="border-fg/10" />
         <Row l={`Seats ${booking.seats.join(", ")}`} r={`₹${seatsTotal(booking)}`} />
         {Object.entries(booking.snacks).map(([id, q]) => {
-          const s = snacks.find((x) => x.id === id)!;
+          const s = snackMenu().find((x) => x.id === id);
+          if (!s) return null;
           return <Row key={id} l={`${s.name} × ${q}`} r={`₹${s.price * q}`} />;
         })}
         <Row l="Convenience fee" r={`₹${FEE}`} />
@@ -166,6 +177,8 @@ export default function PayPage() {
         <button className="btn btn-ghost" onClick={() => router.push("/book/snacks")}>Back</button>
         {needsSignIn ? (
           <Link href="/login?next=/book/pay" className="btn btn-brand flex-1">Sign in to pay ₹{total}</Link>
+        ) : account.needsVerify ? (
+          <Link href="/login?mode=verify&next=/book/pay" className="btn btn-brand flex-1">Confirm your email to pay ₹{total}</Link>
         ) : (
           <button disabled={paying || !checked || (Boolean(config?.database) && !account.loaded)} className="btn btn-brand flex-1 disabled:opacity-60" onClick={pay}>
             {paying ? (razorpayOn ? "Waiting for payment..." : "Processing...") : `Pay ₹${total}`}

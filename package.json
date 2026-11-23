@@ -2,17 +2,14 @@
   "name": "pickmyseat",
   "version": "1.0.0",
   "private": true,
-  "description": "PickMySeat: movie ticket booking with a walkable 3D cinema. Frontend (Next.js), backend (Node API) and database (PostgreSQL on Supabase, SQLite for the local backend).",
+  "description": "PickMySeat: movie ticket booking with a walkable 3D cinema. Next.js website and API, PostgreSQL (Supabase) database, Android app.",
   "scripts": {
     "setup": "npm install --prefix frontend",
     "dev:frontend": "npm run dev --prefix frontend",
-    "dev:backend": "npm run dev --prefix backend",
     "build": "npm run build --prefix frontend",
-    "test": "npm test --prefix backend",
-    "db:seed": "node database/generate-seed.mjs",
-    "db:reset": "npm run db:reset --prefix backend",
+    "test": "node --test frontend/scripts/dates.test.ts",
     "db:pg": "node frontend/scripts/pg-setup.mjs",
     "make-admin": "node frontend/scripts/make-admin.mjs",
-    "test:dates": "node --test frontend/scripts/dates.test.ts"
+    "test:e2e": "node frontend/scripts/e2e.mjs"
   }
 }

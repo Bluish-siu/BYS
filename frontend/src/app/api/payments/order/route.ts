@@ -1,7 +1,8 @@
 import { findTheatre } from "@/lib/catalog";
 import { sql } from "@/lib/db";
 import { currentUser } from "@/lib/auth-server";
-import { HOLD_MINUTES, badResponse, checkBooking, newBookingId, reserve, takenResponse } from "@/lib/booking-server";
+import { mailEnabled } from "@/lib/mail";
+import { HOLD_MINUTES, badResponse, checkBooking, newBookingId, reserve, showKeyOf, takenResponse } from "@/lib/booking-server";
 import { razorpay, razorpayKeys } from "@/lib/razorpay-server";
 
 export const dynamic = "force-dynamic";
@@ -13,6 +14,8 @@ export async function POST(req: Request) {
   // With a database, tickets belong to an account, so the customer must be signed in.
   const user = sql ? await currentUser(req) : null;
   if (sql && !user) return Response.json({ error: "Please sign in to book tickets" }, { status: 401 });
+  if (user && mailEnabled && !user.email_verified)
+    return Response.json({ error: "Please confirm your email address before booking. We sent you a 6-digit code.", verify: true }, { status: 403 });
   const c = await checkBooking(await req.json().catch(() => null));
   if (!c.ok) return badResponse(c);
   const b = c.b;
@@ -20,6 +23,8 @@ export async function POST(req: Request) {
   // Hold the seats first, so two people can never pay for the same seat.
   let bookingId = newBookingId();
   if (sql) {
+    // A new attempt replaces this customer's unfinished one for the same show (e.g. they came back from Razorpay).
+    await sql`DELETE FROM bookings WHERE user_id = ${user!.id} AND status = 'pending' AND show_key = ${showKeyOf(b)}`;
     const held = await reserve(sql, b, "pending", user!.id);
     if (!held.ok) return takenResponse(held.taken);
     bookingId = held.id;
