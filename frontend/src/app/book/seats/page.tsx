@@ -67,6 +67,8 @@ export default function SeatsPage() {
   const [tour, setTour] = useState(false);
   const [qty, setQty] = useState(2);
   const [msg, setMsg] = useState("");
+  // The seat whose view the 3D hall shows. Tapping seats in 3D only moves you there; it doesn't book them.
+  const [preview, setPreview] = useState<string | null>(null);
   const input = useRef(newInput());
   const onWalk = useCallback(() => { setTour(false); setMode("walk"); }, []);
 
@@ -112,25 +114,36 @@ export default function SeatsPage() {
   const picked = booking.seats;
   const last = picked[picked.length - 1] ?? null;
   const lastRow = last ? layout.byId.get(last) : undefined;
+  const viewing = preview && !sold.has(preview) ? preview : last; // seat the camera sits in
+  const viewingRow = viewing ? layout.byId.get(viewing) : undefined;
 
   const enter3d = (m: CamMode) => { setTour(false); setMode(m); setView("3d"); };
-  const toggle = (id: string) => {
+  // Adds or removes a seat from the booking.
+  const toggle = (id: string, goTo3d = true) => {
     setMsg("");
     if (picked.includes(id)) {
       const rest = picked.filter((s) => s !== id);
       patch({ seats: rest });
-      if (!rest.length && mode === "seat") setMode("overview");
+      // From the 3D bar you keep looking from that seat; from the 2D map the view goes back to your other seats.
+      if (goTo3d) {
+        if (preview === id) setPreview(null);
+        if (!rest.length && mode === "seat") setMode("overview");
+      }
       return;
     }
     if (picked.length >= 8) return setMsg("You can pick up to 8 seats.");
     patch({ seats: [...picked, id] });
+    setPreview(id);
     // take you into the seat so you can check the view from it
-    enter3d("seat");
+    if (goTo3d) enter3d("seat");
   };
+  // In 3D, tapping a seat only sits you there to check the view. Adding it is a separate, deliberate tap.
+  const look = (id: string) => { setMsg(""); setTour(false); setPreview(id); setMode("seat"); };
   const pickBest = () => {
     const ids = bestSeats(layout, qty, sold);
     if (!ids) return setMsg(`No ${qty} seats together are free for this show.`);
     patch({ seats: ids });
+    setPreview(null);
     setMsg(`Picked ${ids.join(", ")}`);
     if (view === "3d") enter3d("seat");
   };
@@ -182,23 +195,39 @@ export default function SeatsPage() {
         <>
           <div className="flex gap-2 overflow-x-auto border-b border-fg/10 px-3 py-2 text-sm md:px-6">
             {MODES.map((m) => <button key={m.id} onClick={() => { setTour(false); setMode(m.id); }} className={`btn shrink-0 !px-3 !py-1.5 text-xs ${mode === m.id && !tour ? "btn-brand" : "btn-ghost"}`}>{m.label}</button>)}
-            <button disabled={!last} onClick={() => { setTour(false); setMode("seat"); }} className={`btn shrink-0 !px-3 !py-1.5 text-xs disabled:opacity-40 ${mode === "seat" && !tour ? "btn-brand" : "btn-ghost"}`}>From my seat</button>
+            <button disabled={!last} onClick={() => { setTour(false); setPreview(null); setMode("seat"); }} className={`btn shrink-0 !px-3 !py-1.5 text-xs disabled:opacity-40 ${mode === "seat" && !tour ? "btn-brand" : "btn-ghost"}`}>From my seat</button>
             <button onClick={() => { setTour(false); setMode("walk"); }} className={`btn shrink-0 !px-3 !py-1.5 text-xs ${mode === "walk" && !tour ? "btn-brand" : "btn-ghost"}`}>Walk around</button>
             <button onClick={() => setTour((t) => !t)} className={`btn shrink-0 !px-3 !py-1.5 text-xs ${tour ? "btn-brand" : "btn-ghost"}`}>{tour ? "Stop tour" : "Auto tour"}</button>
           </div>
           <div className="on-dark fade-in relative min-h-0 flex-1 bg-ink text-white">
-            <SeatHall layout={layout} format={booking.format} movie={movie} sold={sold} picked={picked} onPick={toggle} mode={mode} seat={last} input={input} onWalk={onWalk} />
+            <SeatHall layout={layout} format={booking.format} movie={movie} sold={sold} picked={picked} onPick={look} mode={mode} seat={viewing} input={input} onWalk={onWalk} />
             <div className="pointer-events-none absolute left-3 top-3 max-h-[70%] space-y-1.5 overflow-hidden rounded-2xl border border-white/10 bg-black/45 p-3 text-[11px] backdrop-blur-md">
               {layout.legend.map((l) => (
                 <div key={`${l.kind}${l.price}`} className="flex items-center gap-2"><span className="h-3 w-3 rounded-sm" style={{ background: KIND_COLOR[l.kind] }} />{l.name} ₹{l.price}</div>
               ))}
               <div className="flex items-center gap-2"><span className="h-3 w-3 rounded-sm" style={{ background: "#FF5A36" }} />Your pick</div>
               <div className="flex items-center gap-2"><span className="h-3 w-3 rounded-sm" style={{ background: "#2b2b31" }} />Sold</div>
-              <div className="hidden pt-1 text-white/50 sm:block">Drag to look 360°<br />WASD or arrows to walk<br />Tap a seat to sit there</div>
+              <div className="hidden pt-1 text-white/50 sm:block">Drag to look 360°<br />WASD or arrows to walk<br />Tap any seat to check its view</div>
             </div>
-            {mode === "seat" && last && lastRow && (
+            {mode === "seat" && viewing && viewingRow && (
               <div className="pointer-events-none absolute left-1/2 top-3 -translate-x-1/2 whitespace-nowrap rounded-full border border-white/10 bg-black/45 px-4 py-1.5 text-sm backdrop-blur-md">
-                View from seat <b>{last}</b> · {lastRow.section} · ₹{lastRow.price}
+                View from seat <b>{viewing}</b> · {viewingRow.section} · ₹{viewingRow.price}
+              </div>
+            )}
+            {/* Checking a seat's view doesn't book it: add or remove it here */}
+            {mode === "seat" && viewing && viewingRow && (
+              <div className="absolute bottom-28 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full sm:bottom-4 border border-white/15 bg-black/60 py-1.5 pl-4 pr-1.5 text-sm backdrop-blur-md">
+                {picked.includes(viewing) ? (
+                  <>
+                    <span className="whitespace-nowrap">✓ <b>{viewing}</b> is in your booking</span>
+                    <button onClick={() => toggle(viewing, false)} className="btn btn-ghost whitespace-nowrap !px-3 !py-1 text-xs">Remove</button>
+                  </>
+                ) : (
+                  <>
+                    <span className="whitespace-nowrap">Just looking at <b>{viewing}</b></span>
+                    <button onClick={() => toggle(viewing, false)} className="btn btn-brand whitespace-nowrap !px-3 !py-1 text-xs">Add {viewing} · ₹{viewingRow.price}</button>
+                  </>
+                )}
               </div>
             )}
             <div className="absolute bottom-4 right-4 grid grid-cols-3 gap-1.5 select-none" style={{ touchAction: "none" }}>
