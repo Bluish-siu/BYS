@@ -42,7 +42,7 @@ export default function SeatMap({ layout, sold, picked, bestseller, onPick }: {
               <h3 className="mb-3 border-b border-fg/10 pb-2 text-center text-[11px] font-semibold uppercase tracking-wider text-fg/60">
                 ₹{sec.price} {sec.name}
               </h3>
-              <div className="space-y-1.5">
+              <div className="space-y-1.5" role="group" aria-label={`${sec.name}, ₹${sec.price} a seat`}>
                 {sec.rows.map((row) => (
                   <div key={row.letter} className="flex items-center">
                     <span className="w-7 shrink-0 text-xs font-medium text-fg/45">{row.letter}</span>
@@ -52,12 +52,14 @@ export default function SeatMap({ layout, sold, picked, bestseller, onPick }: {
                         const isPicked = picked.includes(s.id);
                         const isBest = !isSold && !isPicked && bestseller.has(s.id);
                         const gap = i > 0 && s.group !== row.seats[i - 1].group;
+                        // Each state differs by shape too, not only colour: sold = hatched and struck through,
+                        // bestseller = dashed outline, selected = solid fill, available = plain outline.
                         const look = isSold
-                          ? "cursor-not-allowed border-transparent bg-fg/[0.06] text-fg/20"
+                          ? "seat-sold cursor-not-allowed border-transparent text-fg/30 line-through"
                           : isPicked
                             ? "border-brand bg-brand font-bold text-white shadow-[0_4px_14px_rgba(255,90,54,0.45)]"
                             : isBest
-                              ? "border-gold text-gold hover:bg-gold/10"
+                              ? "border-dashed border-gold text-gold hover:bg-gold/10"
                               : "border-fg/40 text-fg/80 hover:border-fg hover:bg-fg/5";
                         return (
                           <button
@@ -65,7 +67,8 @@ export default function SeatMap({ layout, sold, picked, bestseller, onPick }: {
                             disabled={isSold}
                             onClick={() => onPick(s.id)}
                             title={`${s.id} · ${row.section} · ₹${row.price}`}
-                            aria-label={`Seat ${s.id}${isSold ? ", sold" : isPicked ? ", selected" : ""}`}
+                            aria-label={`Seat ${s.id}, ${row.section}, ₹${row.price}${isSold ? ", sold" : isPicked ? ", selected" : isBest ? ", bestseller" : ", available"}`}
+                            aria-pressed={isSold ? undefined : isPicked}
                             className={`${CELL[row.kind]} ${gap ? "ml-6" : ""} grid h-7 shrink-0 place-items-center rounded-[4px] border text-[10px] transition ${look}`}
                           >
                             {String(s.num).padStart(2, "0")}

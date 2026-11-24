@@ -103,6 +103,11 @@ public class MainActivity extends Activity {
         CookieManager.getInstance().setAcceptThirdPartyCookies(w, true); // Razorpay checkout runs in an iframe
         w.setWebViewClient(new Client());
         w.setWebChromeClient(new Chrome());
+        // Any other download (for example the APK via a "download" link) goes to the phone's browser.
+        w.setDownloadListener((url, ua, disposition, mime, length) -> {
+            if (url.startsWith("http")) openOutside(Uri.parse(url));
+            else toast("Use Save ticket to keep a copy of your ticket");
+        });
         return w;
     }
 
@@ -134,6 +139,12 @@ public class MainActivity extends Activity {
     /** Web links stay in the app. upi:, tel:, mailto: and intent: links open the matching app (UPI apps, dialer...). */
     private boolean openOutside(Uri uri) {
         String scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase();
+        // A new version of the app: let the phone's browser download it, so Android can install it.
+        String path = uri.getPath() == null ? "" : uri.getPath().toLowerCase();
+        if ((scheme.equals("https") || scheme.equals("http")) && path.endsWith(".apk")) {
+            try { startActivity(new Intent(Intent.ACTION_VIEW, uri)); } catch (ActivityNotFoundException e) { toast("No browser found to download the update"); }
+            return true;
+        }
         switch (scheme) {
             case "http": case "https": case "about": case "data": case "blob": case "javascript":
                 return false;
@@ -229,6 +240,12 @@ public class MainActivity extends Activity {
     @Override
     public void onRequestPermissionsResult(int code, String[] permissions, int[] results) {
         super.onRequestPermissionsResult(code, permissions, results);
+        if (code == STORAGE_REQUEST && pendingImage != null) {
+            if (results.length > 0 && results[0] == android.content.pm.PackageManager.PERMISSION_GRANTED) saveToGallery(pendingImage, pendingImageName);
+            else toast("Allow storage to save tickets to the Gallery");
+            pendingImage = null;
+            return;
+        }
         if (code != CAMERA_REQUEST || pendingCamera == null) return;
         if (results.length > 0 && results[0] == android.content.pm.PackageManager.PERMISSION_GRANTED)
             pendingCamera.grant(new String[] { PermissionRequest.RESOURCE_VIDEO_CAPTURE });
@@ -264,6 +281,51 @@ public class MainActivity extends Activity {
                 send.putExtra(Intent.EXTRA_TEXT, text);
                 startActivity(Intent.createChooser(send, "Share ticket"));
             });
+        }
+
+        /** Called as window.PickMySeatApp.saveImage(base64Png, fileName): saves a ticket to the Gallery. */
+        @JavascriptInterface
+        public void saveImage(String base64Png, String fileName) {
+            byte[] png;
+            try { png = android.util.Base64.decode(base64Png, android.util.Base64.DEFAULT); }
+            catch (IllegalArgumentException e) { runOnUiThread(() -> toast("Couldn't save the ticket")); return; }
+            String name = fileName.replaceAll("[^A-Za-z0-9._-]", "_");
+            runOnUiThread(() -> {
+                if (Build.VERSION.SDK_INT < 29 && checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                    pendingImage = png; pendingImageName = name;
+                    requestPermissions(new String[] { android.Manifest.permission.WRITE_EXTERNAL_STORAGE }, STORAGE_REQUEST);
+                } else {
+                    saveToGallery(png, name);
+                }
+            });
+        }
+    }
+
+    private static final int STORAGE_REQUEST = 8;
+    private byte[] pendingImage;
+    private String pendingImageName;
+
+    /** Writes a PNG to Pictures/PickMySeat so it shows in the Gallery and opens without internet. */
+    private void saveToGallery(byte[] png, String name) {
+        try {
+            if (Build.VERSION.SDK_INT >= 29) {
+                android.content.ContentValues v = new android.content.ContentValues();
+                v.put(android.provider.MediaStore.Images.Media.DISPLAY_NAME, name);
+                v.put(android.provider.MediaStore.Images.Media.MIME_TYPE, "image/png");
+                v.put(android.provider.MediaStore.Images.Media.RELATIVE_PATH, "Pictures/PickMySeat");
+                Uri uri = getContentResolver().insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, v);
+                if (uri == null) throw new java.io.IOException("no gallery");
+                try (java.io.OutputStream out = getContentResolver().openOutputStream(uri)) { out.write(png); }
+            } else {
+                java.io.File dir = new java.io.File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_PICTURES), "PickMySeat");
+                if (!dir.exists() && !dir.mkdirs()) throw new java.io.IOException("no folder");
+                java.io.File f = new java.io.File(dir, name);
+                try (java.io.FileOutputStream out = new java.io.FileOutputStream(f)) { out.write(png); }
+                android.media.MediaScannerConnection.scanFile(this, new String[] { f.getAbsolutePath() }, new String[] { "image/png" }, null);
+            }
+            toast("Ticket saved to Gallery › PickMySeat");
+        } catch (Exception e) {
+            toast("Couldn't save the ticket");
         }
     }
 

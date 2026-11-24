@@ -171,3 +171,11 @@ CREATE TABLE IF NOT EXISTS seat_prices (
 ALTER TABLE auth_codes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE snacks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE seat_prices ENABLE ROW LEVEL SECURITY;
+
+-- ---------- Site settings (admin switches) ----------
+-- demo_occupancy: show sample "sold" seats on every show so the demo looks busy (off = only real sales).
+CREATE TABLE IF NOT EXISTS settings (
+  key   TEXT PRIMARY KEY,
+  value JSONB NOT NULL
+);
+ALTER TABLE settings ENABLE ROW LEVEL SECURITY;

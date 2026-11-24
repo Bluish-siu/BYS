@@ -2,6 +2,8 @@ import "./globals.css";
 import type { Metadata, Viewport } from "next";
 import { Sora } from "next/font/google";
 import Header from "@/components/Header";
+import SiteFooter from "@/components/SiteFooter";
+import AppUpdateBanner from "@/components/AppUpdateBanner";
 
 const sora = Sora({ subsets: ["latin"], weight: ["400", "500", "600", "700", "800"], variable: "--font-sora", display: "swap" });
 
@@ -30,9 +32,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={sora.variable}>
       <body className="min-h-screen font-sans antialiased">
+        <AppUpdateBanner />
         <Header />
         <main>{children}</main>
-        <footer className="px-6 py-10 text-center text-sm text-fg/45">Demo project. All movie data is dummy data.</footer>
+        <SiteFooter />
       </body>
     </html>
   );

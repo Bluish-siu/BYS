@@ -6,6 +6,8 @@
     <!-- Admins scan ticket QR codes at the entrance; asked for only when the scanner opens -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <!-- Saving tickets to the Gallery on Android 9 and older (newer versions need no permission) -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
 
     <!-- UPI apps the Razorpay checkout may hand the payment to -->
     <queries>

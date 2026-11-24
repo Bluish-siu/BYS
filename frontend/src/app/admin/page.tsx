@@ -10,12 +10,12 @@ import { useCatalog } from "@/lib/use-catalog";
 import { useAccount } from "@/lib/auth";
 import { getLayout } from "@/lib/layouts";
 import { bookableDates, dateLabel } from "@/lib/dates";
-import { getShows, showLabel, soldSeatsFor } from "@/lib/shows";
+import { demoSold, getShows, showLabel } from "@/lib/shows";
 
 type AdminMovie = Movie & { active: boolean; sort: number };
 type AdminTheatre = CityTheatre & { active: boolean };
 type AdminSnack = { id: string; name: string; price: number; emoji: string; active: boolean; sort: number };
-type AdminData = { movies: AdminMovie[]; theatres: AdminTheatre[]; shows: ShowRow[]; layouts: string[]; snacks: AdminSnack[]; seatPrices: Record<string, Record<string, number>> };
+type AdminData = { movies: AdminMovie[]; theatres: AdminTheatre[]; shows: ShowRow[]; layouts: string[]; snacks: AdminSnack[]; seatPrices: Record<string, Record<string, number>>; demoOccupancy: boolean };
 const TABS = ["Dashboard", "Check-in", "Customers", "Movies", "Theatres", "Showtimes", "Prices", "Block seats"] as const;
 type Tab = (typeof TABS)[number];
 const FORMATS = ["2D", "3D", "IMAX", "4DX", "ICE", "Dolby Atmos"];
@@ -132,21 +132,21 @@ function Dashboard({ movies }: { movies: AdminMovie[] }) {
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search ticket id, name, email, mobile" className="input !w-72 !py-1.5 text-sm" />
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+          <table className="rtable w-full text-left text-sm">
             <thead className="text-xs uppercase tracking-wider text-fg/50">
               <tr><th className="py-2 pr-3">Ticket</th><th className="pr-3">Customer</th><th className="pr-3">Movie</th><th className="pr-3">Show</th><th className="pr-3">Seats</th><th className="pr-3 text-right">Amount</th><th className="pr-3">Booked</th><th>Status</th></tr>
             </thead>
             <tbody>
               {o.recent.map((b) => (
                 <tr key={b.id} className="border-t border-fg/10 align-top">
-                  <td className="py-2 pr-3 font-mono text-xs"><Link href={`/ticket/${b.id}`} className="underline">{b.id}</Link></td>
-                  <td className="pr-3">{b.customer ?? "Guest"}<div className="text-xs text-fg/50">{b.contact}</div></td>
-                  <td className="pr-3">{title(b.movie_id)}</td>
-                  <td className="pr-3 text-xs">{b.city} · {b.show_date} · {b.show_time}</td>
-                  <td className="pr-3 text-xs">{b.seats.join(", ")}</td>
-                  <td className="pr-3 text-right font-semibold">{rupees(b.total)}</td>
-                  <td className="pr-3 text-xs text-fg/55">{new Date(b.created_at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</td>
-                  <td className="text-xs">
+                  <td data-label="Ticket" className="py-2 pr-3 font-mono text-xs"><Link href={`/ticket/${b.id}`} className="underline">{b.id}</Link></td>
+                  <td data-label="Customer" className="pr-3">{b.customer ?? "Guest"}<div className="text-xs text-fg/50">{b.contact}</div></td>
+                  <td data-label="Movie" className="pr-3">{title(b.movie_id)}</td>
+                  <td data-label="Show" className="pr-3 text-xs">{b.city} · {b.show_date} · {b.show_time}</td>
+                  <td data-label="Seats" className="pr-3 text-xs">{b.seats.join(", ")}</td>
+                  <td data-label="Amount" className="pr-3 text-right font-semibold">{rupees(b.total)}</td>
+                  <td data-label="Booked" className="pr-3 text-xs text-fg/55">{new Date(b.created_at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</td>
+                  <td data-label="Status" className="text-xs">
                     {b.status === "cancelled" ? <span className="text-fg/55">Cancelled by {b.cancelled_by}{b.refund_amount ? ` · ₹${b.refund_amount} refunded` : ""}</span>
                       : b.checked_in_at ? <span className="font-semibold text-emerald-700">Checked in</span>
                       : <button onClick={() => cancel(b)} className="font-semibold text-brand underline">Cancel &amp; refund</button>}
@@ -396,7 +396,7 @@ function BlockSeats({ data }: { data: AdminData }) {
       {msg && <p className="text-sm font-semibold text-brand">{msg}</p>}
       {layout && (
         <div className="card overflow-hidden p-2">
-          <SeatMap layout={layout} sold={new Set([...soldSeatsFor(showKey, show!.fill, layout.seatIds), ...booked, ...blockedSet])} picked={picked} bestseller={new Set()}
+          <SeatMap layout={layout} sold={new Set([...demoSold(showKey, show!.fill, layout.seatIds), ...booked, ...blockedSet])} picked={picked} bestseller={new Set()}
             onPick={(id) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))} />
         </div>
       )}
@@ -490,20 +490,20 @@ function Customers({ me }: { me: string }) {
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, email, mobile" className="input !w-64 !py-1.5 text-sm" />
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full text-left text-sm">
+        <table className="rtable w-full text-left text-sm">
           <thead className="text-xs uppercase tracking-wider text-fg/50">
             <tr><th className="py-2 pr-3">Name</th><th className="pr-3">Email</th><th className="pr-3">Mobile</th><th className="pr-3 text-right">Tickets</th><th className="pr-3 text-right">Spent</th><th className="pr-3">Joined</th><th>Actions</th></tr>
           </thead>
           <tbody>
             {list?.map((u) => (
               <tr key={u.id} className="border-t border-fg/10 align-top">
-                <td className="py-2 pr-3 font-semibold">{u.name}{u.role === "admin" && <span className="ml-1 rounded bg-ink px-1.5 text-[10px] text-white">ADMIN</span>}</td>
-                <td className="pr-3 text-xs">{u.email}{u.email && <div className={u.email_verified ? "text-emerald-700" : "text-fg/45"}>{u.email_verified ? "✓ confirmed" : "not confirmed"}</div>}</td>
-                <td className="pr-3 text-xs">{u.phone ?? "–"}</td>
-                <td className="pr-3 text-right">{u.tickets}</td>
-                <td className="pr-3 text-right">{rupees(u.spent)}</td>
-                <td className="pr-3 text-xs text-fg/55">{new Date(u.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</td>
-                <td className="space-x-3 whitespace-nowrap text-xs font-semibold">
+                <td data-label="Name" className="py-2 pr-3 font-semibold">{u.name}{u.role === "admin" && <span className="ml-1 rounded bg-ink px-1.5 text-[10px] text-white">ADMIN</span>}</td>
+                <td data-label="Email" className="pr-3 text-xs">{u.email}{u.email && <div className={u.email_verified ? "text-emerald-700" : "text-fg/45"}>{u.email_verified ? "✓ confirmed" : "not confirmed"}</div>}</td>
+                <td data-label="Mobile" className="pr-3 text-xs">{u.phone ?? "–"}</td>
+                <td data-label="Tickets" className="pr-3 text-right">{u.tickets}</td>
+                <td data-label="Spent" className="pr-3 text-right">{rupees(u.spent)}</td>
+                <td data-label="Joined" className="pr-3 text-xs text-fg/55">{new Date(u.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</td>
+                <td data-label="Actions" className="space-x-3 whitespace-nowrap text-xs font-semibold">
                   <button className="text-brand" onClick={() => act(u, "reset")}>Reset password</button>
                   {!u.email_verified && <button className="text-fg/60" onClick={() => act(u, "verify")}>Mark confirmed</button>}
                   {u.id !== me && <button className="text-fg/60" onClick={() => act(u, u.role === "admin" ? "user" : "admin")}>{u.role === "admin" ? "Remove admin" : "Make admin"}</button>}
@@ -549,8 +549,26 @@ function Prices({ data, changed }: { data: AdminData; changed: () => void }) {
     catch (e) { alert((e as Error).message); }
   };
 
+  const setDemo = async (on: boolean) => {
+    try { await api("/api/admin/settings", "POST", { demoOccupancy: on }); changed(); }
+    catch (e) { alert((e as Error).message); }
+  };
+
   return (
     <div className="grid gap-5 lg:grid-cols-2">
+      <div className="card flex flex-wrap items-center justify-between gap-3 p-5 lg:col-span-2">
+        <div>
+          <p className="font-bold">Demo occupancy</p>
+          <p className="text-sm text-fg/60">
+            {data.demoOccupancy
+              ? "On: every show also shows sample sold seats, so the demo looks busy. Customers see “incl. demo sample” in the seat legend."
+              : "Off: seat maps show only real sales, blocked seats and seats being paid for."}
+          </p>
+        </div>
+        <button onClick={() => setDemo(!data.demoOccupancy)} className={`btn !py-1.5 ${data.demoOccupancy ? "btn-ghost" : "btn-brand"}`}>
+          {data.demoOccupancy ? "Turn off" : "Turn on"}
+        </button>
+      </div>
       <div className="card space-y-3 p-5">
         <p className="font-bold">Seat prices</p>
         <select value={theatreId} onChange={(e) => setTheatreId(e.target.value)} className="input">

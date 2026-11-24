@@ -28,3 +28,19 @@ body { -webkit-tap-highlight-color: transparent; }
 /* 3D hall fades in when you leave the seat map */
 .fade-in { animation: fade-in 0.6s ease-out both; }
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+/* Admin tables: on phones each row becomes a card, every cell labelled from its data-label. */
+@media (max-width: 767px) {
+  .rtable, .rtable tbody { display: block; width: 100%; }
+  .rtable thead { display: none; }
+  .rtable tr { display: block; padding: 0.75rem 0; border-top: 1px solid rgba(22, 22, 26, 0.1); }
+  .rtable td { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: baseline; column-gap: 0.75rem; width: 100%; padding: 0.15rem 0 !important; text-align: right; overflow-wrap: anywhere; }
+  .rtable td::before { content: attr(data-label); margin-right: auto; flex-shrink: 0; font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: rgba(22, 22, 26, 0.45); text-align: left; }
+  .rtable td > div { text-align: right; }
+}
+
+/* Keyboard users can always see where they are. */
+:focus-visible { outline: 3px solid #FF5A36; outline-offset: 2px; border-radius: 6px; }
+
+/* Sold seats: diagonal hatching, so they read as unavailable without relying on colour. */
+.seat-sold { background: repeating-linear-gradient(135deg, rgba(22,22,26,0.10) 0 3px, rgba(22,22,26,0.03) 3px 6px); }

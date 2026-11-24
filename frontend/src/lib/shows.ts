@@ -49,6 +49,12 @@ export function getShows(movieId: string, city: string, date: string, { includeS
   });
 }
 
+/** Sample "sold" seats for a show, only when the admin's demo occupancy switch is on. Otherwise none. */
+export const demoSold = (showKey: string, fill: number, ids: string[]) =>
+  catalogStore.getState().cat.demoOccupancy ? soldSeatsFor(showKey, fill, ids) : new Set<string>();
+/** "Filling fast" label: only meaningful with demo occupancy. */
+export const fillingFast = (fill: number) => catalogStore.getState().cat.demoOccupancy && fill > 0.75;
+
 export function soldSeatsFor(showKey: string, fill: number, ids: string[]): Set<string> {
   const r = rng(hash(showKey));
   const sold = new Set<string>();

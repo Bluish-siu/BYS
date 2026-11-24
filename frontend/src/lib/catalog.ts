@@ -14,6 +14,7 @@ export type Catalog = {
   ratings: Record<string, Rating>;  // audience ratings from reviews, by movie id
   snacks: Snack[];                  // the snack menu, with admin prices
   seatPrices: Record<string, Record<string, number>>; // theatreId -> section name -> price, set by an admin
+  demoOccupancy: boolean;           // show sample "sold" seats so the demo looks busy (admin switch)
   live: boolean;                    // true when it came from the database
 };
 
@@ -24,6 +25,7 @@ export const builtInCatalog: Catalog = {
   ratings: {},
   snacks: builtInSnacks,
   seatPrices: {},
+  demoOccupancy: true, // no database: a pure demo, so shows look busy
   live: false,
 };
 

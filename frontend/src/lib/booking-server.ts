@@ -5,7 +5,7 @@ import { findTheatre, getMovie, snackMenu, theatreExists } from "./catalog";
 import { dbCatalog } from "./catalog-server";
 import { grandTotal, layoutFor } from "./price";
 import { refundPayment } from "./razorpay-server";
-import { getShows, soldSeatsFor } from "./shows";
+import { demoSold, getShows } from "./shows";
 import { bookableDates, isDate } from "./dates";
 import type { sql as Db } from "./db";
 
@@ -53,7 +53,7 @@ export async function checkBooking(body: unknown): Promise<{ ok: true; b: Bookin
   const layout = layoutFor({ theatreId: theatre.id });
   if (!seats.every((s) => typeof s === "string" && layout.byId.has(s))) return bad("Some seats don't exist in this theatre");
   const showKey = showKeyOf({ movieId, showId: show.id, date });
-  const soldOut = soldSeatsFor(showKey, show.fill, layout.seatIds);
+  const soldOut = demoSold(showKey, show.fill, layout.seatIds);
   const gone = seats.filter((s) => soldOut.has(s));
   if (gone.length) return { ok: false, status: 409, error: `Seat ${gone.join(", ")} is already sold`, taken: gone };
   const snacks: Record<string, number> = {};

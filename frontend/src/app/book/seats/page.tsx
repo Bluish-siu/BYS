@@ -5,8 +5,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { findTheatre, getMovie } from "@/lib/catalog";
 import { useCatalog } from "@/lib/use-catalog";
 import { KIND_COLOR, Layout } from "@/lib/layouts";
-import { getShows, showIsOpen, soldSeatsFor } from "@/lib/shows";
+import { demoSold, fillingFast, getShows, showIsOpen } from "@/lib/shows";
 import ShowStarted from "@/components/ShowStarted";
+import { setLite, useLite } from "@/lib/lite";
 import { dateLabel } from "@/lib/dates";
 import { useStore } from "@/lib/store";
 import { fetchBookedSeats, showKeyOf } from "@/lib/api";
@@ -59,6 +60,7 @@ function bestsellers(layout: Layout) {
 export default function SeatsPage() {
   const ready = useHydrated();
   const cat = useCatalog(); // seat prices can change in the admin panel
+  const { lite } = useLite(); // slow phones: tapping a seat stays on the 2D map
   useNow(); // re-check every half minute whether the show has started
   const router = useRouter();
   const { booking, patch } = useStore();
@@ -106,10 +108,10 @@ export default function SeatsPage() {
     setMsg("Some seats you picked were just booked by someone else. Please choose again.");
   }, [booked]); // eslint-disable-line react-hooks/exhaustive-deps
   const sold = useMemo(() => {
-    const s = booking && layout ? soldSeatsFor(showKey, booking.fill, layout.seatIds) : new Set<string>();
+    const s = booking && layout ? demoSold(showKey, booking.fill, layout.seatIds) : new Set<string>();
     for (const id of booked) s.add(id);
     return s;
-  }, [showKey, booked, layout]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [showKey, booked, layout, cat]); // eslint-disable-line react-hooks/exhaustive-deps
   const best = useMemo(() => (layout ? bestsellers(layout) : new Set<string>()), [layout]);
   const movie = booking ? getMovie(booking.movieId) : undefined;
   if (!ready || !booking || !movie || !layout) return <p className="p-10 text-fg/60">Loading...</p>;
@@ -179,7 +181,7 @@ export default function SeatsPage() {
               return (
                 <button key={s.id}
                   onClick={() => { if (!active) { patch({ showId: s.id, time: s.time, format: s.format, fill: s.fill, seats: [] }); setMsg(""); } }}
-                  className={`shrink-0 rounded-md border px-3 py-1 text-center text-xs ${active ? "border-fg bg-fg text-paper" : s.fill > 0.75 ? "border-gold/70 text-gold" : "border-fg/25 text-fg/80 hover:border-fg/60"}`}>
+                  className={`shrink-0 rounded-md border px-3 py-1 text-center text-xs ${active ? "border-fg bg-fg text-paper" : fillingFast(s.fill) ? "border-gold/70 text-gold" : "border-fg/25 text-fg/80 hover:border-fg/60"}`}>
                   <div className="font-semibold">{s.time}</div>
                   <div className="text-[9px] opacity-80">{s.format}</div>
                 </button>
@@ -187,14 +189,14 @@ export default function SeatsPage() {
             })}
           </div>
           <div className="min-h-0 flex-1">
-            <SeatMap layout={layout} sold={sold} picked={picked} bestseller={best} onPick={toggle} />
+            <SeatMap layout={layout} sold={sold} picked={picked} bestseller={best} onPick={(id) => toggle(id, !lite)} />
           </div>
           <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1 border-t border-fg/10 py-2 text-xs text-fg/70">
             <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm border border-fg/40" />Available</span>
-            <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm bg-fg/15" />Sold</span>
-            <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm border border-gold" />Bestseller</span>
+            <span className="flex items-center gap-1.5"><span className="seat-sold h-3 w-3 rounded-sm" />Sold{cat.demoOccupancy ? " (incl. demo sample)" : ""}</span>
+            <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm border border-dashed border-gold" />Bestseller</span>
             <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm bg-brand" />Selected</span>
-            <span className="text-fg/40">Tap a seat to see your view in 3D</span>
+            <span className="text-fg/40">{lite ? <>Lite mode: tap seats to pick them, then “View from” for 3D · <button className="underline" onClick={() => setLite(false)}>turn off</button></> : "Tap a seat to see your view in 3D"}</span>
           </div>
         </>
       ) : (
@@ -251,12 +253,12 @@ export default function SeatsPage() {
 
       <div className="flex flex-wrap items-center gap-3 border-t border-fg/10 bg-card/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur">
         <div className="flex items-center gap-2 text-sm">
-          <button className="btn btn-ghost !px-3 !py-1" onClick={() => setQty(Math.max(1, qty - 1))}>-</button>
-          <span className="w-4 text-center">{qty}</span>
-          <button className="btn btn-ghost !px-3 !py-1" onClick={() => setQty(Math.min(8, qty + 1))}>+</button>
+          <button aria-label="Fewer seats" className="btn btn-ghost !px-3 !py-1" onClick={() => setQty(Math.max(1, qty - 1))}>-</button>
+          <span className="w-4 text-center" aria-live="polite" aria-label={`${qty} seats`}>{qty}</span>
+          <button aria-label="More seats" className="btn btn-ghost !px-3 !py-1" onClick={() => setQty(Math.min(8, qty + 1))}>+</button>
           <button className="btn btn-ghost !py-1.5 text-sm" onClick={pickBest}>✦ Best {qty} seat{qty > 1 ? "s" : ""}</button>
         </div>
-        <div className="mr-auto min-w-0 text-sm text-fg/70">{msg || (picked.length ? `${picked.join(", ")}` : "Tap a seat to pick it")}</div>
+        <div className="mr-auto min-w-0 text-sm text-fg/70" aria-live="polite">{msg || (picked.length ? `${picked.join(", ")}` : "Tap a seat to pick it")}</div>
         {view === "map" && last && (
           <button onClick={() => enter3d("seat")} className="btn btn-ghost !py-1.5 text-sm">👁 View from {last}</button>
         )}

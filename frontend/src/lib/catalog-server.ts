@@ -51,9 +51,10 @@ export async function adminCatalog() {
     sql<AdminSnack[]>`SELECT id, name, price, emoji, active, sort FROM snacks ORDER BY sort, name`,
     sql`SELECT theatre_id, section, price FROM seat_prices`,
   ]);
+  const [demo] = await sql`SELECT value FROM settings WHERE key = 'demo_occupancy'`;
   const seatPrices: Catalog["seatPrices"] = {};
   for (const p of prices) (seatPrices[p.theatre_id] ??= {})[p.section] = p.price;
-  return { movies: movies.map(toMovie), theatres: theatres.map(toTheatre), shows: shows as unknown as Catalog["shows"], snacks: [...snacks], seatPrices };
+  return { movies: movies.map(toMovie), theatres: theatres.map(toTheatre), shows: shows as unknown as Catalog["shows"], snacks: [...snacks], seatPrices, demoOccupancy: demo?.value === true };
 }
 
 /** The public catalogue (active movies and theatres only). Also becomes the server's current catalogue. */
@@ -73,6 +74,7 @@ export async function dbCatalog(): Promise<Catalog> {
     ratings: Object.fromEntries(ratings.map((r) => [r.movie_id, { avg: r.avg, count: r.count }])),
     snacks: all!.snacks.filter((x) => x.active).map(({ active, sort, ...x }) => x), // eslint-disable-line @typescript-eslint/no-unused-vars
     seatPrices: all!.seatPrices,
+    demoOccupancy: all!.demoOccupancy,
     live: true,
   };
   cache = { at: Date.now(), cat };

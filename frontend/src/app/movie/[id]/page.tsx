@@ -4,7 +4,7 @@ import { useState } from "react";
 import Reviews from "@/components/Reviews";
 import { getMovie } from "@/lib/catalog";
 import { useCatalog } from "@/lib/use-catalog";
-import { getShows } from "@/lib/shows";
+import { fillingFast, getShows } from "@/lib/shows";
 import { useStore } from "@/lib/store";
 import { useHydrated, useNow } from "@/lib/pricing";
 import { bookableDates, dateLabel } from "@/lib/dates";
@@ -67,7 +67,7 @@ export default function MoviePage() {
               <div className="flex flex-wrap gap-2">
                 {!shows.length && <p className="text-sm text-fg/50">No more shows today. Pick another date.</p>}
                 {shows.map((s) => {
-                  const nearlyFull = s.fill > 0.75;
+                  const nearlyFull = fillingFast(s.fill);
                   return (
                     <button key={s.id}
                       onClick={() => { setBooking({ movieId: movie.id, city: cityName, date, theatreId: theatre.id, showId: s.id, time: s.time, format: s.format, fill: s.fill, seats: [], snacks: {} }); router.push("/book/seats"); }}

@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import * as THREE from "three";
 import type { Movie } from "@/lib/data";
 import { useCatalog } from "@/lib/use-catalog";
+import { useLite } from "@/lib/lite";
 import { makeBannerTexture } from "./PosterTexture";
 
 // The ring always has six screens: the first six movies, repeated if there are fewer.
@@ -198,7 +199,48 @@ function Floor({ low }: { low: boolean }) {
   );
 }
 
+/** The home page banner: the 3D ring of screens, or a light, flat banner in Lite mode (slow phones, data saver). */
 export default function Hero() {
+  const { ready, lite } = useLite();
+  if (!ready) return <section className="h-[calc(100svh-57px)] min-h-[560px] w-full bg-ink" aria-hidden />;
+  return lite ? <HeroLite /> : <Hero3D />;
+}
+
+function HeroLite() {
+  const cat = useCatalog();
+  const list = cat.movies.slice(0, 6);
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setI((x) => (x + 1) % Math.max(1, list.length)), 5000);
+    return () => clearInterval(t);
+  }, [list.length]);
+  const m = list[i % Math.max(1, list.length)];
+  if (!m) return null;
+  return (
+    <section className="on-dark relative flex min-h-[420px] w-full items-end overflow-hidden bg-ink text-white">
+      {m.banner && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img key={m.id} src={m.banner} alt="" className="absolute inset-0 h-full w-full object-cover opacity-80" />
+      )}
+      <div className="relative w-full bg-gradient-to-t from-ink via-ink/75 to-transparent px-5 pb-6 pt-24 text-center md:px-12">
+        <p className="text-[11px] uppercase tracking-[0.35em] text-white/60">{m.lang} · {m.genre} · ★ {m.rating}</p>
+        <h1 className="mt-1 text-4xl font-black leading-none sm:text-6xl">{m.title}</h1>
+        <div className="mt-4 flex justify-center gap-3">
+          <Link href={`/movie/${m.id}`} className="btn btn-brand px-7 py-3">Book tickets</Link>
+          <Link href="/movies" className="btn btn-ghost px-6 py-3">All movies</Link>
+        </div>
+        <div className="mx-auto mt-5 flex max-w-xs gap-2">
+          {list.map((f, k) => (
+            <button key={f.id} aria-label={`Show ${f.title}`} onClick={() => setI(k)} className={`h-1.5 flex-1 rounded-full ${k === i ? "bg-white" : "bg-white/20"}`} />
+          ))}
+        </div>
+        <p className="mt-3 text-xs text-white/45">Lite mode: 3D is off on this device. Switch it at the bottom of the page.</p>
+      </div>
+    </section>
+  );
+}
+
+function Hero3D() {
   const [front, setFront] = useState(0);
   // touch devices and narrow screens get fewer particles, no mirror floor and a lower pixel ratio
   const [low] = useState(() => typeof window !== "undefined" && (window.matchMedia("(pointer: coarse)").matches || window.innerWidth < 768));

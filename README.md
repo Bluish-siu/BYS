@@ -97,7 +97,7 @@ npm run make-admin -- your@email.com
 | Check-in | Scan the ticket QR with the phone camera (or type the ticket id). Each ticket works once, on its show's date; a second scan says "Already used" |
 | Customers | Search accounts, give a temporary password, mark an email confirmed, make or remove admins |
 | Movies, Theatres, Showtimes | Add, edit, hide or delete movies (key art link, YouTube trailer), theatres (city, formats, seat layout) and daily showtimes |
-| Prices | Seat prices per theatre and section, and the snack menu (prices, new snacks, hide snacks) |
+| Prices | Seat prices per theatre and section, the snack menu (prices, new snacks, hide snacks), and the **Demo occupancy** switch |
 | Block seats | Take seats off sale for one show, and release them again |
 
 ## Booking rules
@@ -106,6 +106,7 @@ npm run make-admin -- your@email.com
 - **Prices are calculated on the server** from the theatre's seat prices and the snack menu. If the browser's total differs, the order is refused.
 - **Seats are held for 10 minutes** while paying. Closing the payment window, a failed payment, or starting again releases them.
 - **Live seat map.** The 2D map and 3D hall refresh every 5 seconds, so seats others buy or start paying for appear without reloading.
+- **Only real sales show as sold.** The admin **Demo occupancy** switch (Prices tab) adds sample sold seats to every show so a demo looks busy; customers then see "incl. demo sample" in the seat legend. It is off by default.
 - **Dates are India time.** A show is stored by its real date (`movie|show|2026-11-25`). Tickets are on sale for today and the next four days; shows that have started disappear and are refused by the server.
 - **Cancellation.** Customers can cancel from the ticket page until 30 minutes before the show; the ticket and snacks are refunded through Razorpay (test mode), the ₹30 convenience fee is not. Admins can cancel any booking with a full refund. If Razorpay can't refund, nothing changes.
 
@@ -157,11 +158,19 @@ All under `/api`.
 | GET, POST | `/admin/overview`, `/admin/users` | Dashboard and customers |
 | GET, POST, DELETE | `/admin/catalog`, `/admin/movies`, `/admin/theatres`, `/admin/shows`, `/admin/prices`, `/admin/snacks`, `/admin/blocks` | Admin edits |
 
+## Lite mode and accessibility
+
+- **Lite mode** turns itself on for phones with little memory, data saver on, or "reduce motion" set, and anyone can switch it in the footer. The home page shows a flat banner instead of the 3D ring, and tapping a seat stays on the 2D map (3D is one tap away).
+- **Seat states don't rely on colour:** sold seats are hatched and struck through, bestsellers have a dashed outline, selected seats are filled. Every seat reads as "Seat D7, Picture Perfect, ₹1650, available" to screen readers, and keyboard focus is always visible.
+- Admin tables turn into labelled cards on phones.
+
 ## Android app (APK)
+
+The website serves the newest app at **/download** (`frontend/public/download/PickMySeat.apk`). After building a new APK, copy it there and bump `APP_LATEST` in `frontend/src/lib/app-version.ts`: older apps then show an "Update available" bar.
 
 `android/release/PickMySeat.apk` installs directly on an Android phone (Android 7.0 or newer). Copy it to the phone, open it, and allow "Install unknown apps" for your file manager when Android asks.
 
-The app opens the live website full screen, so it has every feature of the site and updates whenever the site is redeployed. It adds an app icon and launch screen, the Back button, full-screen trailers, Razorpay's redirect payment flow, UPI apps, the phone's share sheet for tickets, the camera for the admin ticket scanner, and an offline screen.
+The app opens the live website full screen, so it has every feature of the site and updates whenever the site is redeployed. It adds an app icon and launch screen, the Back button, full-screen trailers, Razorpay's redirect payment flow, UPI apps, the phone's share sheet for tickets, **Save ticket** to the Gallery (opens at the gate without internet), the camera for the admin ticket scanner, an update notice, and an offline screen.
 
 To rebuild it, open `android/` in Android Studio and choose **Build → Generate Signed App Bundle / APK**, or:
 
@@ -176,8 +185,8 @@ The release key (`pickmyseat-release.jks`) and its passwords (`keystore.properti
 
 | Command | What it does |
 | --- | --- |
-| `npm test` | Show date and time rules (India time, midnight, started shows) |
-| `npm run test:e2e` | 68 checks against the real database: accounts, email codes, forgot password, prices, blocking, seat locking, both payment flows, check-in, cancellation, refunds, reviews. Start the site first with `MAIL_DEV=log` (see the top of `frontend/scripts/e2e.mjs`). It removes everything it creates |
+| `npm test` | Show date and time rules (India time, midnight, started shows) and the app version check |
+| `npm run test:e2e` | 71 checks against the real database: accounts, email codes, forgot password, prices, blocking, seat locking, both payment flows, check-in, cancellation, refunds, reviews. Start the site first with `MAIL_DEV=log` (see the top of `frontend/scripts/e2e.mjs`). It removes everything it creates |
 
 ## Useful commands
 
@@ -190,5 +199,5 @@ The release key (`pickmyseat-release.jks`) and its passwords (`keystore.properti
 ## Notes
 
 - Payments run only in Razorpay test mode. Nothing is ever charged.
-- Showtimes, and the "already sold" seats on every show, are generated so the demo looks busy. Real bookings are added on top, and admins can set real showtimes.
+- Showtimes are generated for movies and theatres without admin-set ones. Sample sold seats appear only when an admin turns on Demo occupancy.
 - Movie posters and trailers belong to their owners and are used for demo purposes only.

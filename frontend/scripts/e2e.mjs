@@ -1,4 +1,4 @@
-// End-to-end test of PickMySeat's API against the real database, then removes everything it created.
+// End-to-end test (71 checks) of PickMySeat's API against the real database, then removes everything it created.
 //
 // 1. Build and start the site with e-mail in log mode (from frontend/):
 //      npm run build
@@ -118,6 +118,13 @@ try {
   [s, r] = await cust("/payments/order", "POST", { ...base, seats: pair, snacks: { [snackId]: 2 }, total: 1 });
   ok(priceOf(r) === price + 198, `new snack (₹99 × 2) counted by the server: ₹${priceOf(r)}`);
   await admin("/admin/snacks", "POST", { id: snackId, name: "Test Samosa", price: 99, active: false });
+
+  // ---------- Demo occupancy switch ----------
+  const demoBefore = (await anon("/catalog"))[1].demoOccupancy;
+  [s, r] = await cust("/admin/settings", "POST", { demoOccupancy: true }); ok(s === 403, "customers can't change site settings");
+  [s, r] = await admin("/admin/settings", "POST", { demoOccupancy: true }); [, r] = await anon("/catalog"); ok(r.demoOccupancy === true, "admin turns sample sold seats on");
+  [s, r] = await admin("/admin/settings", "POST", { demoOccupancy: false }); [, r] = await anon("/catalog"); ok(r.demoOccupancy === false, "and off: only real sales show");
+  await admin("/admin/settings", "POST", { demoOccupancy: demoBefore === true });
 
   // ---------- Admin blocks seats ----------
   [s, r] = await admin("/admin/blocks", "POST", { movieId, theatreId: "mum-icon", date: tomorrow, showId: show.id, seats: ["E1", "E2", "E3"] });

@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import SaveTicket from "@/components/SaveTicket";
 import ShareTicket from "@/components/ShareTicket";
 import TicketCard from "@/components/TicketCard";
 import { useStore, type Ticket } from "@/lib/store";
@@ -71,6 +72,7 @@ export default function TicketPage() {
       {msg && <p className="mt-4 rounded-xl border border-fg/15 bg-card p-3 text-sm">{msg}</p>}
       <div className="mt-6 flex flex-wrap gap-2">
         {!cancelled && <ShareTicket ticket={ticket} />}
+        {!cancelled && <SaveTicket ticket={ticket} />}
         <Link href="/tickets" className="btn btn-ghost">My tickets</Link>
         <Link href="/" className="btn btn-ghost">Book another</Link>
       </div>
