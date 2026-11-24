@@ -1,13 +1,18 @@
 "use client";
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { appVersion } from "@/lib/app-version";
 import { setLite, useLite } from "@/lib/lite";
 
 export default function SiteFooter() {
   const { ready, lite, choice, auto } = useLite();
+  // Inside the Android app the "Get the app" link makes no sense, so it only shows in a browser.
+  const [inApp, setInApp] = useState(true);
+  useEffect(() => setInApp(appVersion(navigator.userAgent) !== null), []);
   return (
     <footer className="space-y-3 px-6 py-10 text-center text-sm text-fg/50">
       <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
-        <Link href="/download" className="font-semibold text-fg/70 hover:text-brand">📱 Get the Android app</Link>
+        {!inApp && <Link href="/download" className="font-semibold text-fg/70 hover:text-brand">📱 Get the Android app</Link>}
         {ready && (
           <label className="flex cursor-pointer items-center gap-2">
             <input type="checkbox" checked={lite} onChange={(e) => setLite(e.target.checked)} className="h-4 w-4 accent-[#FF5A36]" />
